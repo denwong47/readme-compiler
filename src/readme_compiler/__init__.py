@@ -1,4 +1,6 @@
+from . import bin
 from . import classes
 from . import settings
 
-from .classes import MarkdownTemplate
+from .classes import    RepositoryDirectory, \
+                        MarkdownTemplate
