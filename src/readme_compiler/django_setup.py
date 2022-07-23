@@ -4,6 +4,7 @@ from django import                  template
 from django.utils.safestring import mark_safe
 
 # Start a register
+# This HAS to be named register in templatetags.py
 register = template.Library()
 
 # Avoid django.core.exceptions.ImproperlyConfigured Exception.

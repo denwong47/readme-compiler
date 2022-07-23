@@ -2,6 +2,7 @@
 from . import django_setup
 
 from . import bin
+from . import log
 from . import classes
 from . import settings
 from . import templatetags

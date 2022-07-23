@@ -1,3 +1,7 @@
+"""
+DO NOT RENAME THIS FILE - THIS NAME IS THE DEFAULT GIVEN BY DJANGO
+"""
+
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
 
 from django.template import Context as  DjangoContext, \
