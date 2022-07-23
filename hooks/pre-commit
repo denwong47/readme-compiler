@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+ENV_PATH=./env
+if [ -f "$ENV_PATH/bin/activate" ]; then
+    python3 -m venv $ENV_PATH
+fi
+
+source $ENV_PATH/bin/activate
+
+echo Precommit using $(python3 --version) at $(which python3).
+
+if ! python3 -m pip list | grep readme-compiler; then
+    python3 -m pip install git+https://github.com/denwong47/readme-compiler.git
+fi
+
+python3 -m readme_compiler

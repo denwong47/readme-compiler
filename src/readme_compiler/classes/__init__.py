@@ -185,11 +185,18 @@ class RepositoryDirectory():
             self.git.path,
             *subdirectories,
         )
+        
+        _blacklist = [
+            self.repopath.abspath(settings.ENV_PATH),
+        ]
 
         with WorkingDirectory(path=path) as cwd:
             for _file in os.listdir(path):
 
-                if (recursive and os.path.isdir(_file)):
+                if (recursive and \
+                    os.path.isdir(_file) and \
+                    os.path.abspath(_file) not in _blacklist
+                ):
                     # If its a directory, and we are doing it recursively, then recursively call this method
                     _return_list += self.list_markdowns(
                         subdirectories = subdirectories + [_file],

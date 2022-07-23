@@ -11,5 +11,7 @@ README_SOURCE_DIRECTORY                 =   ".readme.source"
 
 README_BRANCH_DESCRIPTION_TEMPLATE      =   "branch.{branch}.md"
 
+ENV_PATH                                =   "/env"
+
 LOGO_URL                                =   f"/{README_SOURCE_DIRECTORY}/.logo"
 FOOTER_LOCATION                         =   f"/{README_SOURCE_DIRECTORY}/.footer"

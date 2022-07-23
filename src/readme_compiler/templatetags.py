@@ -72,4 +72,4 @@ def logo(
         with open(path, "r") as _f:
             _url = _f.read().format(**kwargs)
         
-        return f"![{alt_text}]({_url})"
+        return django_setup.mark_safe(f"![{alt_text}]({_url})")
