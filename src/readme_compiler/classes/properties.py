@@ -84,7 +84,7 @@ class GitProperties():
     
     @classmethod
     def from_path(
-        cls:"GitProperties",
+        cls:Type["GitProperties"],
         path:str = "./",
         *,
         parent:Any = None,
@@ -111,4 +111,17 @@ class GitProperties():
                 path    = _path,
                 parent  = parent,
             )
-            
+
+    def add(
+        self:"GitProperties",
+        path:str,
+    )->bool:
+        """
+        Use `git add` to add target to the repo.
+        """
+        with WorkingDirectory(path=self.path) as cwd:
+            _return = fetchers.shell_output([   "git",
+                                                "add",
+                                                path])
+
+        return not len(_return)

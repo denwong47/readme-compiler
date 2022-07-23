@@ -1,6 +1,10 @@
 import os, sys
 
+
+from datetime import datetime
 import enum
+import functools
+import random
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
@@ -13,7 +17,9 @@ from ..django_setup import register
 
 from .. import bin
 from .. import settings
+from .. import stdout
 
+from ..log import logger
 from .cwd import WorkingDirectory
 from .properties import GitProperties
 from .repopath import RepositoryPath
@@ -106,9 +112,13 @@ class RepositoryDirectory():
             "git": self.git,
         })
 
+    # Cache the output - in case we repeat stuff because of embed etc.
+    @functools.lru_cache()
     def render(
         self,
         path:str            = "./",
+        *,
+        dry_run:bool        = False,
     )->str:
         """
         Render the template using Django Template API.
@@ -123,7 +133,44 @@ class RepositoryDirectory():
             transformers        = self.transformers,
         )
 
-        return _template.render(self.context())
+        # Render the text
+        _rendered = _template.render(self.context())
+
+        # Get the destination path
+        _rendered_path = self.repopath.parse(path).rendered
+
+        if (not dry_run):
+            # If this is not a dry run, save the compiled file to the rendered location.
+            try:
+                with open(_rendered_path, "w") as _f:
+                    _f.write(_rendered)
+
+                # Add file to repository
+                if (self.git.add(path) and \
+                    self.git.add(_rendered_path)):
+            
+                    logger.info(
+                        " - "+stdout.green("SUCCESS: ")+f"Saved {self.colour_path(path.ljust(120))} at {self.colour_path(_rendered_path)} containing {len(_rendered):,} bytes of data."
+                    )
+                else:
+                    logger.info(
+                        " - "+stdout.yellow("WARNING: ")+f"Saved {self.colour_path(path.ljust(120))} at {self.colour_path(_rendered_path)} containing {len(_rendered):,} bytes of data, but {stdout.red('git add command had failed')}."
+                    )
+            except (
+                OSError,
+                RuntimeError,
+                PermissionError,
+            ) as e: 
+                logger.error(
+                     " - "+stdout.red("ERROR  : ")+f"Failed to save {self.colour_path(path.ljust(120))} at {self.colour_path(_rendered_path)}: {type(e).__name__} occured: {str(e)}"
+                )
+
+        else:
+            logger.info(
+                " - "+stdout.yellow("DRY RUN: ")+f"Did not save {self.colour_path(path.ljust(120))} at {self.colour_path(_rendered_path)} with {len(_rendered):,} bytes of data."
+            )
+
+        return _rendered
 
     def list_markdowns(
         self,
@@ -184,12 +231,59 @@ class RepositoryDirectory():
 
         return _return_list
 
+    def colour_path(
+        self,
+        path:str,
+    )->str:
+        """
+        Add ANSI colours to specific terms to make the path more readable.
+        """
+        # Replace file name with cyan
+        path = path.replace(os.path.basename(path), stdout.cyan(os.path.basename(path)))
+        path = path.replace(self.git.repo, stdout.blue(self.git.repo))
+        if (self.settings.paths.folder.source in path):
+            path = path.replace(self.settings.paths.folder.source, stdout.red(self.settings.paths.folder.source))
+        else:
+            path = path.replace(self.settings.paths.folder.rendered, stdout.yellow(self.settings.paths.folder.rendered))
+
+        return path
+
     def compile(
         self,
+        *,
+        dry_run:bool        = False,
     )->bool:
         """
         Render all readme files in this `RepositoryDirectory`.
         """
+        logger.info("")
+        logger.info(stdout.blue("readme-compiler"))
+        logger.info(stdout.white("https://www.github.com/denwong47/readme-compiler"))
+        logger.info(f"A markdown formatter using {stdout.white('django Template API')}.")
+        logger.info("")
+        logger.info("Compiling git repository at "+stdout.white(self.path)+"...")
+        logger.info("")
+        for _attr in ("repo", "hook", "branch", "owner", "path"):
+            logger.info(f"- {_attr:24s}: {stdout.cyan(getattr(self.git, _attr))}")
+        logger.info("")
+
+        _sources = self.list_sources()
+
+        logger.info(f'Found {stdout.cyan(len(_sources))} Markdown source files, including:')
+        for _file in random.sample(_sources, min(8, len(_sources))):
+            logger.info(f"- {self.colour_path(_file)}")
+
+        logger.info("")
+
+        logger.info(stdout.blue("readme-compiler") + " is now renderingd Markdown files...")
+        # Actually starts rendering
+        for _file in _sources:
+            self.render(_file, dry_run=dry_run)
+
+        logger.info("")
+
+        logger.info(stdout.blue("readme-compiler") + " completed.")
+        logger.info("")
 
 class MarkdownTemplate(DjangoTemplate):
     """

@@ -26,9 +26,15 @@ def embed(
     
     """
     if (isinstance(_respository := context.get("repository_object", None), classes.RepositoryDirectory)):
-        path = _respository.repopath.rendered(path)
-        path = _respository.repopath.abspath(path)
+        # Make sure we are pointing to the rendered path (not very crucial)
+        path = _respository.repopath.parse(path).source
+
+        # This is always a dry_run because we are returning the value
+        _return = _respository.render(path, dry_run = True)
     
+    else:
+        _return = "# * readme-compiler error: cannot embed without `RepositoryDirectory` instance * #"
+
     return django_setup.mark_safe(
-        f"Embedding path {path}."
+        _return
     )

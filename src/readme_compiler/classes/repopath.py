@@ -6,6 +6,8 @@ from types import SimpleNamespace
 import readme_compiler.classes as classes
 import readme_compiler.bin as bin
 
+from .. import stdout
+
 LINKS_PATTERN = re.compile(r"\[(?P<link_text>[^]]+)\]\((?P<link_href>[^\)\s]+)\)")
 
 
