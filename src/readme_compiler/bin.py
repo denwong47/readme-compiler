@@ -15,6 +15,18 @@ from .log import logger
 
 print = logger.debug
 
+def is_markdown(filename:str)->bool:
+    if (isinstance(settings.FILE_EXTENSION_MARKDOWN, str)): settings.FILE_EXTENSION_MARKDOWN = (settings.FILE_EXTENSION_MARKDOWN, )
+
+    for _extension in settings.FILE_EXTENSION_MARKDOWN:
+        if (_extension[0] != "."): _extension = "."+_extension
+
+        # If the last bit of file name matches the extension
+        if (filename[-len(_extension):].lower() == _extension.lower()):
+            return True
+    
+    return False
+
 def split_abspath(path:str)->SimpleNamespace:
     """
     Fully split a path down into elements.
@@ -71,6 +83,7 @@ def parse_markdown_path(
             )
             _rendered_path      = path
             _mode               = MarkdownTemplateMode.BRANCH
+
         else:
             # This is a plain ./GITDIR folder, treat it as index
             print (f"{repr(path)} appears to imply an index {rendered_index}.")
@@ -89,6 +102,7 @@ def parse_markdown_path(
             _source_path        = path
             _rendered_path      = path.replace(source_folder, rendered_folder)
             _mode               = MarkdownTemplateMode.LEAF
+            
         elif (rendered_folder == split_abspath(path).dir[-1]):
             # This is a ./GITDIR/.readme/somefile.md
             print (f"{repr(path)} appears to be a template in rendered readme folder.")
@@ -96,6 +110,29 @@ def parse_markdown_path(
             _source_path        = path.replace(rendered_folder, source_folder)
             _rendered_path      = path
             _mode               = MarkdownTemplateMode.LEAF
+
+        elif (rendered_index == split_abspath(path).file):
+            # This is a ./GITDIR/README.md
+            print (f"{repr(path)} is an absolute path to a {rendered_index}.")
+
+            _source_path        = path.replace(rendered_index, source_index)
+            _rendered_path      = path
+            _mode               = MarkdownTemplateMode.INDEX
+
+        elif (source_index == split_abspath(path).file):
+            # This is a ./GITDIR/.README.source.md
+            print (f"{repr(path)} is an absolute path to a {source_index}.")
+
+            _source_path        = path
+            _rendered_path      = path.replace(source_index, rendered_index)
+            _mode               = MarkdownTemplateMode.INDEX
+        # elif (is_markdown(path)):
+        #     # This could be a lone .md file like README.md and .README.source.md?
+        #     print (f"{repr(path)} appears to be a standaloned Markdown file.")\
+            
+        #     _source_path        = path + SOME SUFFIX?
+        #     _rendered_path      = path
+        #     _mode               = MarkdownTemplateMode.INDEX
         else:
             raise ValueError(f"{repr(path)} is not recognised as a valid path for a Markdown.")
 

@@ -1,5 +1,7 @@
 import logging
 
+FILE_EXTENSION_MARKDOWN                 =   (".md",)
+
 LOGGING_LEVEL                           =   logging.DEBUG
 
 README_RENDERED_INDEX                   =   "README.md"

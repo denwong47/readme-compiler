@@ -25,6 +25,10 @@ def embed(
     """
     
     """
+    if (isinstance(_respository := context.get("repository_object", None), classes.RepositoryDirectory)):
+        path = _respository.repopath.rendered(path)
+        path = _respository.repopath.abspath(path)
+    
     return django_setup.mark_safe(
-        f"Embedding path {repr(path)}."
+        f"Embedding path {path}."
     )

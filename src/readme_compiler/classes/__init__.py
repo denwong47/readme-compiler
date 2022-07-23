@@ -14,7 +14,9 @@ from ..django_setup import register
 from .. import bin
 from .. import settings
 
+from .cwd import WorkingDirectory
 from .properties import GitProperties
+from .repopath import RepositoryPath
 from .transformers import   transformers, \
                             Transformer, \
                             TransformerMeta
@@ -62,6 +64,8 @@ class RepositoryDirectory():
             )
         )
 
+        self.repopath   =   RepositoryPath(repository=self)
+
         # If the transformers had not initialised, __init__() it with self as respository.
         self.transformers = list(map(
             lambda transformer: transformer(self) \
@@ -77,6 +81,7 @@ class RepositoryDirectory():
             "(" + \
                 ', '.join([f'{_key}={repr(_value)}' for _key, _value in ( \
                     ('path', self.path),\
+                    ('transformers', self.transformers),\
                     ('rendered_index', self.settings.paths.index.rendered),\
                     ('rendered_folder', self.settings.paths.folder.rendered),\
                     ('source_index', self.settings.paths.index.source),\
@@ -97,6 +102,7 @@ class RepositoryDirectory():
         Generate a DjangoContext from this `RepositoryDirectory`.
         """
         return DjangoContext({
+            "repository_object": self,  # This is not for Template syntax use - more for Template tags.
             "git": self.git,
         })
 
@@ -119,6 +125,64 @@ class RepositoryDirectory():
 
         return _template.render(self.context())
 
+    def list_markdowns(
+        self,
+        *,
+        subdirectories:List[str]=[],
+        recursive:bool=True,
+    )->List[str]:
+        """
+        Return a list of all markdown files found, recursively searched in the folder.
+        """
+        _return_list = []
+
+        path = os.path.join(
+            self.git.path,
+            *subdirectories,
+        )
+
+        with WorkingDirectory(path=path) as cwd:
+            for _file in os.listdir(path):
+
+                if (recursive and os.path.isdir(_file)):
+                    # If its a directory, and we are doing it recursively, then recursively call this method
+                    _return_list += self.list_markdowns(
+                        subdirectories = subdirectories + [_file],
+                        recursive=recursive,
+                    )
+                elif (bin.is_markdown(_file)):
+                    # If its a .md, add it to the list
+                    _abspath = os.path.abspath(_file)
+
+                    _return_list.append(
+                        _abspath
+                    )
+
+        return _return_list
+
+    def list_sources(
+        self,
+        *,
+        recursive:bool=True,
+    )->List[str]:
+        """
+        Return a list of all markdowns that are classifed as "sources".
+        """
+
+        _return_list = []
+
+        for _file in self.list_markdowns(
+            subdirectories=[],
+            recursive=recursive,
+        ):
+            _parsed = self.repopath.prepare(_file)
+
+            # If its not a branch (it won't, because these are files)
+            if (_parsed.mode is not MarkdownTemplateMode.BRANCH):
+                # If the source is not already on the list, append it
+                if (_parsed.source not in _return_list): _return_list.append(_parsed.source)
+
+        return _return_list
 
     def compile(
         self,
@@ -138,6 +202,7 @@ class MarkdownTemplate(DjangoTemplate):
         name: Optional[str]                             = None,
         engine: Optional[DjangoEngine]                  = None,
         *,
+        path: str                                       = None,
         transformers: Iterable[Callable[[str], str]]    = None,
     ) -> None:
         """
@@ -153,6 +218,7 @@ class MarkdownTemplate(DjangoTemplate):
         super().__init__(template_string, origin, name, engine)
 
         self.transformers = transformers if (isinstance(transformers, Iterable)) else []
+        self.path         = path
 
     @classmethod
     def from_file(
@@ -195,6 +261,7 @@ class MarkdownTemplate(DjangoTemplate):
                     return cls(
                         _f.read(),
                         transformers    = transformers,
+                        path            = path,
                     )
 
             else:
@@ -216,11 +283,12 @@ class MarkdownTemplate(DjangoTemplate):
         After Rendering with the Template, pass the result through any transformers specified.
         """
 
-        _rendered = super().render(context)
+        # Switch cwd to the path of the file before we render.
+        with WorkingDirectory(path=self.path) as cwd:
 
-        for _transformer in filter(callable, self.transformers):
-            _rendered = _transformer(_rendered)
+            _rendered = super().render(context)
 
-        return _rendered
+            for _transformer in filter(callable, self.transformers):
+                _rendered = _transformer(_rendered)
 
-        
+            return _rendered

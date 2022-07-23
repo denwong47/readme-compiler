@@ -1,3 +1,13 @@
+"""
+# Transformers
+
+Transfromers are string processors that are applied after django.template had rendered the text.
+Most Transformers are for changing where links point to, adding header/footer and the likes.
+
+Transformers can be called as functions, with or without initialising an instance.
+Instances however can have `RepositoryDirectory` attached to them, greatly increasing their awareness of the context.
+"""
+
 import abc
 import inspect
 import re
@@ -8,10 +18,11 @@ from django.utils.safestring import SafeString
 
 from ..log import logger
 from .. import settings
+from .repopath import LINKS_PATTERN
 
 print = logger.debug
 
-LINKS_PATTERN = re.compile(r"\[(?P<link_text>[^]]+)\]\((?P<link_href>[^\)\s]+)\)")
+
 
 class TransformerMeta(abc.ABCMeta):
     """
@@ -22,6 +33,9 @@ class TransformerMeta(abc.ABCMeta):
     2. keep a list of all concrete Transformers declared.
     """
     declared:List["Transformer"] = []
+
+    def __repr__(self)->str:
+        return self.__name__
 
     def __new__(
         cls,
@@ -84,6 +98,14 @@ class Transformer(abc.ABC, metaclass=TransformerMeta):
         # transform will be REDECLARED by the subclass!
         return self.transform(text=text)
 
+    def __repr__(self)->str:
+        return type(self).__name__ + \
+            "(" + \
+                ', '.join([f'{_key}={repr(_value)}' for _key, _value in ( \
+                    ('repository', f"<{type(self.repository).__name__} instance at {id(self.repository):x}>"),\
+                )]) + \
+            ")"
+
 
 class SourceLinkTransformer(Transformer):
     """
@@ -99,37 +121,23 @@ class SourceLinkTransformer(Transformer):
         for _match in LINKS_PATTERN.finditer(text):
             
             if ("://" not in _match.group("link_href")):
-                _dest_url = None
+                _dest_url = _match.group("link_href")
 
                 if (self.repository is not None):
+                    _dest_url = self.repository.repopath.rendered(_match.group("link_href"))
 
-                    if (self.repository.settings.paths.folder.source in _match.group("link_href").split("/")):
-                        # This is pointing to ./GIT_DIR/.readme/something.md
-                        _dest_url = _match.group("link_href").replace(
-                            f"/{self.repository.settings.paths.folder.source}/", 
-                            f"/{self.repository.settings.paths.folder.rendered}/",
-                            1,
-                        )
+                # link_href needs to change
+                if (_dest_url != _match.group("link_href")):
+                    print (f"Phrase [{_match.group(0)}] points to a source link - replacing with [[{_match.group('link_text')}]({_dest_url})].")
 
-                    elif (self.repository.settings.paths.index.source in _match.group("link_href").split("#")[0].split("/")):
-                        # This is pointing to ./GIT_DIR/.README.source.md
-                        _dest_url = _match.group("link_href").replace(
-                            f"{self.repository.settings.paths.index.source}", 
-                            f"{self.repository.settings.paths.index.rendered}",
-                            1,
+                    # Put substitution operation in a list, last item to come first.
+                    # This is because changing the earlier spans will result in later spans shifting positions - so later spans had to be done first.
+                    _substitutions.insert(0, 
+                        SimpleNamespace(
+                            span = _match.span("link_href"),
+                            replacement = _dest_url,
                         )
-                        
-                    if (_dest_url):
-                        print (f"Phrase [{_match.group(0)}] points to a source link - replacing with [[{_match.group('link_text')}]({_dest_url})].")
-
-                        # Put substitution operation in a list, last item to come first.
-                        # This is because changing the earlier spans will result in later spans shifting positions - so later spans had to be done first.
-                        _substitutions.insert(0, 
-                            SimpleNamespace(
-                                span = _match.span("link_href"),
-                                replacement = _dest_url,
-                            )
-                        )
+                    )
             else:
                 # If schema is specified, this will be disregarded
                 print (f"Phrase [{_match.group(0)}] is ignored as it points to a URL with schema/protocol.")

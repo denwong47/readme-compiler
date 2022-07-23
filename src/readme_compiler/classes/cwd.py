@@ -12,9 +12,15 @@ class WorkingDirectory():
 
     def __init__(
         self,
-        path:str="./",
+        path:str=None,
     )->None:
         self.cached_cwds = []
+
+        if (not path): path = "./"
+
+        # if its a file, get its parent directory
+        if (os.path.isfile(path)):
+            path = os.path.dirname(path)
 
         if (os.path.isdir(path)):
             path = os.path.abspath(path)
