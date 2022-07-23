@@ -18,7 +18,11 @@ from django.utils.safestring import SafeString
 
 from ..log import logger
 from .. import settings
+from ..settings.enums import RenderPurpose
+
 from .repopath import LINKS_PATTERN
+
+
 
 print = logger.debug
 
@@ -77,14 +81,16 @@ class Transformer(abc.ABC, metaclass=TransformerMeta):
     """
     Abstract base class for all string Transformers
     """
+    skip_paths = []
+
     def __init__(
         self,
         repository:Any = None,
-        # template:Any   = None,
+        *,
+        skip_paths:List[str] = None,    # Paths to NOT apply the transformation on. Prevents a footer being added to a footer etc.
     )->None:
         self.repository = repository
-        # self.template   = template
-
+        self.skip_paths = skip_paths if skip_paths else []
 
     @abc.abstractmethod
     def transform(
@@ -92,6 +98,17 @@ class Transformer(abc.ABC, metaclass=TransformerMeta):
         text:SafeString,
     )->SafeString:
         pass
+
+    def should_transform(
+        self,
+        path:str,
+        *,
+        purpose:RenderPurpose = RenderPurpose.STANDARD,
+    )->bool:
+        """
+        Check if the path is on its own skip_paths.
+        """
+        return not path in self.skip_paths
 
     def __call__(self, text:SafeString):
         # Cannot just __call__ = transform:
@@ -150,12 +167,47 @@ class SourceLinkTransformer(Transformer):
 
         return text
 
-# class FooterTransformer(Transformer):
-#     """
-#     Add a footer to all Readme files
-#     """
-#     def transform(
-#         self,
-#         text:str,
-#     )->str:
-#         pass
+class FooterTransformer(Transformer):
+    """
+    Add a footer to all Readme files
+    """
+    def __init__(
+        self, 
+        repository: Any = None,
+        template: str = settings.FOOTER_LOCATION,
+    ) -> None:
+
+        template = repository.repopath.abspath(
+            repository.repopath.parse(template).source
+        )
+
+        super().__init__(
+            repository,
+            skip_paths = [template, ],
+        )
+
+        self.template = template
+
+    def transform(
+        self,
+        text:str,
+    )->str:
+        if (self.repository is not None and self.template):
+            
+            _footer = self.repository.render(self.template, purpose=RenderPurpose.EMBED)
+            
+            text += _footer
+
+        return text
+
+    def should_transform(
+        self,
+        path: str,
+        *,
+        purpose: RenderPurpose = RenderPurpose.STANDARD
+    ) -> bool:
+        return \
+            super().should_transform(path, purpose=purpose) and \
+            purpose not in (
+                RenderPurpose.EMBED,
+            )

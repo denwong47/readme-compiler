@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, U
 
 from .. import bin
 from .. import settings
+from ..settings.enums import RenderPurpose
 from .. import fetchers
 
 from .cwd import WorkingDirectory
@@ -38,6 +39,10 @@ class GitProperties():
     @property
     def repo(self)->str:
         return os.path.basename(self.path)
+
+    @property
+    def url(self)->str:
+        return f'https://{self.hook_parsed["domain"]}/{self.owner}/{self.repo}'
     
     @property
     def clone_comannd(self)->str:
@@ -77,7 +82,8 @@ class GitProperties():
         else:
             try:
                 return self.parent.render(
-                    self.branch_description_path
+                    self.branch_description_path,
+                    purpose=RenderPurpose.EMBED,
                 )
             except FileNotFoundError as e:
                 return "(No branch information available.)"

@@ -18,6 +18,8 @@ from ..django_setup import register
 from .. import bin
 from .. import settings
 from .. import stdout
+from ..settings.enums import MarkdownTemplateMode, \
+                             RenderPurpose
 
 from ..log import logger
 from .cwd import WorkingDirectory
@@ -25,12 +27,8 @@ from .properties import GitProperties
 from .repopath import RepositoryPath
 from .transformers import   transformers, \
                             Transformer, \
-                            TransformerMeta
+                            TransformerMeta 
 
-class MarkdownTemplateMode(enum.Enum):
-    INDEX   =   0
-    LEAF    =   1
-    BRANCH  =   2
 
 class RepositoryDirectory():
     """
@@ -71,6 +69,7 @@ class RepositoryDirectory():
         )
 
         self.repopath   =   RepositoryPath(repository=self)
+        self.git        =   GitProperties.from_path(path=self.path, parent=self)
 
         # If the transformers had not initialised, __init__() it with self as respository.
         self.transformers = list(map(
@@ -79,8 +78,6 @@ class RepositoryDirectory():
                                         else transformer,
             transformers
         ))
-
-        self.git        =   GitProperties.from_path(path=self.path, parent=self)
 
     def __repr__(self) -> str:
         return type(self).__name__ + \
@@ -116,9 +113,10 @@ class RepositoryDirectory():
     @functools.lru_cache()
     def render(
         self,
-        path:str            = "./",
+        path:str                = "./",
         *,
-        dry_run:bool        = False,
+        purpose:RenderPurpose   = RenderPurpose.STANDARD,
+        dry_run:bool            = False,
     )->str:
         """
         Render the template using Django Template API.
@@ -134,7 +132,7 @@ class RepositoryDirectory():
         )
 
         # Render the text
-        _rendered = _template.render(self.context())
+        _rendered = _template.render(self.context(), purpose=purpose)
 
         # Get the destination path
         _rendered_path = self.repopath.parse(path).rendered
@@ -372,6 +370,8 @@ class MarkdownTemplate(DjangoTemplate):
                 Dict[str, Any]
             ]
         ],
+        *,
+        purpose:RenderPurpose = RenderPurpose.NORMAL,
     ) -> str:
         """
         After Rendering with the Template, pass the result through any transformers specified.
@@ -383,6 +383,10 @@ class MarkdownTemplate(DjangoTemplate):
             _rendered = super().render(context)
 
             for _transformer in filter(callable, self.transformers):
-                _rendered = _transformer(_rendered)
+                if (_transformer.should_transform(
+                    self.path,
+                    purpose=purpose,
+                )):
+                    _rendered = _transformer(_rendered)
 
             return _rendered
