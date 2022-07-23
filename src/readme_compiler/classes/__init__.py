@@ -1,8 +1,6 @@
 import os, sys
 
-import dataclasses
 import enum
-import re
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
@@ -15,11 +13,11 @@ from ..django_setup import register
 
 from .. import bin
 from .. import settings
-from .. import fetchers
 
 from .properties import GitProperties
-
-from .cwd import WorkingDirectory
+from .transformers import   transformers, \
+                            Transformer, \
+                            TransformerMeta
 
 class MarkdownTemplateMode(enum.Enum):
     INDEX   =   0
@@ -34,10 +32,11 @@ class RepositoryDirectory():
         self,
         path:str="./",
         *,
-        rendered_index:str  = settings.README_RENDERED_INDEX,
-        rendered_folder:str = settings.README_RENDERED_DIRECTORY,
-        source_index:str    = settings.README_SOURCE_INDEX,
-        source_folder:str   = settings.README_SOURCE_DIRECTORY,
+        transformers:List[Transformer]  = transformers,
+        rendered_index:str              = settings.README_RENDERED_INDEX,
+        rendered_folder:str             = settings.README_RENDERED_DIRECTORY,
+        source_index:str                = settings.README_SOURCE_INDEX,
+        source_folder:str               = settings.README_SOURCE_DIRECTORY,
     ) -> None:
         """
         Initialise a `RepositoryDirectory` at the given location.
@@ -62,6 +61,14 @@ class RepositoryDirectory():
                 )
             )
         )
+
+        # If the transformers had not initialised, __init__() it with self as respository.
+        self.transformers = list(map(
+            lambda transformer: transformer(self) \
+                                    if (isinstance(transformer, TransformerMeta)) \
+                                        else transformer,
+            transformers
+        ))
 
         self.git        =   GitProperties.from_path(path=self.path, parent=self)
 
@@ -100,7 +107,15 @@ class RepositoryDirectory():
         """
         Render the template using Django Template API.
         """
-        _template = MarkdownTemplate.from_file(path, index=self.settings.paths.index.source)
+        _template = MarkdownTemplate.from_file(
+            path,
+            rendered_index      = self.settings.paths.index.rendered,
+            rendered_folder     = self.settings.paths.folder.rendered,
+            source_index        = self.settings.paths.index.source,
+            source_folder       = self.settings.paths.folder.source,
+
+            transformers        = self.transformers,
+        )
 
         return _template.render(self.context())
 
@@ -122,6 +137,8 @@ class MarkdownTemplate(DjangoTemplate):
         origin: Optional[DjangoOrigin]                  = None,
         name: Optional[str]                             = None,
         engine: Optional[DjangoEngine]                  = None,
+        *,
+        transformers: Iterable[Callable[[str], str]]    = None,
     ) -> None:
         """
         """
@@ -135,18 +152,31 @@ class MarkdownTemplate(DjangoTemplate):
 
         super().__init__(template_string, origin, name, engine)
 
+        self.transformers = transformers if (isinstance(transformers, Iterable)) else []
+
     @classmethod
     def from_file(
         cls:"MarkdownTemplate",
         path:str,
         *,
-        index:str    = settings.README_SOURCE_INDEX,
+        transformers: Iterable[Callable[[str], str]]    = None,
+
+        rendered_index:str  = settings.README_RENDERED_INDEX,
+        rendered_folder:str = settings.README_RENDERED_DIRECTORY,
+        source_index:str    = settings.README_SOURCE_INDEX,
+        source_folder:str   = settings.README_SOURCE_DIRECTORY,
     )->"MarkdownTemplate":
         """
         Initialise a `MarkdownTemplate` instance from an existing template file.
         """
         # Breaddown `path` to see what exactly we are supposed to do
-        _parsed = bin.prepare_markdown_path(path)
+        _parsed = bin.prepare_markdown_path(
+            path,
+            rendered_index  = rendered_index,
+            rendered_folder = rendered_folder,
+            source_index    = source_index,
+            source_folder   = source_folder,
+        )
 
         if (_parsed.mode is MarkdownTemplateMode.BRANCH):
            raise ValueError(
@@ -162,10 +192,35 @@ class MarkdownTemplate(DjangoTemplate):
                 path = os.path.abspath(path)
 
                 with open(path, "r") as _f:
-                    return cls(_f.read())
+                    return cls(
+                        _f.read(),
+                        transformers    = transformers,
+                    )
 
             else:
                 # File does not exists
                 raise FileNotFoundError(
                     f"{repr(path)} not found."
                 )
+
+    def render(
+        self:"MarkdownTemplate",
+        context: Optional[
+            Union[
+                DjangoContext,
+                Dict[str, Any]
+            ]
+        ],
+    ) -> str:
+        """
+        After Rendering with the Template, pass the result through any transformers specified.
+        """
+
+        _rendered = super().render(context)
+
+        for _transformer in filter(callable, self.transformers):
+            _rendered = _transformer(_rendered)
+
+        return _rendered
+
+        

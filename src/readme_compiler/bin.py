@@ -50,7 +50,6 @@ def parse_markdown_path(
     if (os.path.isdir(path)):
         print (f"{repr(path)} is a directory.")
 
-        print (os.path.split(path))
         if (split_abspath(path).dir[-1] == source_folder):
             # This is a ./GITDIR/.readme.source folder
             print (f"{repr(path)} appears to be a source readme folder.")
