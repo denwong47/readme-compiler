@@ -67,5 +67,10 @@ wheels/
 *.egg
 MANIFEST
 __pycache__/
+
+# Repo specific
+*.code-workspace
 .README.cache/
 .README.md.cache
+env/
+_dev.py
