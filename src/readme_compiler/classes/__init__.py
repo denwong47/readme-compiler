@@ -34,7 +34,6 @@ class RepositoryDirectory():
         self,
         path:str="./",
         *,
-        echo:bool           = True,
         rendered_index:str  = settings.README_RENDERED_INDEX,
         rendered_folder:str = settings.README_RENDERED_DIRECTORY,
         source_index:str    = settings.README_SOURCE_INDEX,
@@ -49,7 +48,7 @@ class RepositoryDirectory():
             raise FileNotFoundError(
                 f"{repr(path)} is not a valid path to an existing folder."
             )
-        
+
         self.settings   =   SimpleNamespace(
             root = path,
             paths = SimpleNamespace(
@@ -64,8 +63,19 @@ class RepositoryDirectory():
             )
         )
 
-        self.git        =   GitProperties.from_path(path=self.path)
+        self.git        =   GitProperties.from_path(path=self.path, parent=self)
 
+    def __repr__(self) -> str:
+        return type(self).__name__ + \
+            "(" + \
+                ', '.join([f'{_key}={repr(_value)}' for _key, _value in ( \
+                    ('path', self.path),\
+                    ('rendered_index', self.settings.paths.index.rendered),\
+                    ('rendered_folder', self.settings.paths.folder.rendered),\
+                    ('source_index', self.settings.paths.index.source),\
+                    ('source_folder', self.settings.paths.folder.source),\
+                )]) + \
+            ")"
 
     @property
     def path(self)->str: return self.settings.root

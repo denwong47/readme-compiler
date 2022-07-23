@@ -21,6 +21,8 @@ class GitProperties():
     hook:str
     branch:str
     path:str
+
+    parent:Any = dataclasses.field(default=None, hash=False, compare=True)
     
     @property
     def hook_parsed(self)->Dict[str, str]:
@@ -36,11 +38,56 @@ class GitProperties():
     @property
     def repo(self)->str:
         return os.path.basename(self.path)
+    
+    @property
+    def clone_comannd(self)->str:
+        return f"git clone --branch {self.branch} {self.hook}"
 
+    @property
+    def branch_escaped(self)->str:
+        _branch = self.branch.lower()
+
+        _branch = re.sub(
+            r"[^a-z0-9]",
+            "_",
+            _branch,
+        )
+
+        return _branch
+
+    @property
+    def branch_description_path(self)->str:
+        if (not hasattr(self.parent, "settings")):
+            raise ValueError(f"Orphaned {type(self).__name__} having no RepositoryDirectory parent cannot use `branch_description_path`.")
+
+        else:
+            return os.path.join(
+                self.path,
+                self.parent.settings.paths.folder.source,
+                settings.README_BRANCH_DESCRIPTION_TEMPLATE.format(
+                    branch = self.branch_escaped
+                ),
+            )
+
+    @property
+    def branch_description(self)->str:
+        if (not hasattr(self.parent, "render")):
+            raise ValueError(f"Orphaned {type(self).__name__} having no RepositoryDirectory parent cannot use `branch_description`.")
+
+        else:
+            try:
+                return self.parent.render(
+                    self.branch_description_path
+                )
+            except FileNotFoundError as e:
+                return "(No branch information available.)"
+    
     @classmethod
     def from_path(
         cls:"GitProperties",
         path:str = "./",
+        *,
+        parent:Any = None,
     )->"GitProperties":
 
         with WorkingDirectory(path=path) as cwd:
@@ -62,5 +109,6 @@ class GitProperties():
                 hook    = _hook,
                 branch  = _branch,
                 path    = _path,
+                parent  = parent,
             )
             
