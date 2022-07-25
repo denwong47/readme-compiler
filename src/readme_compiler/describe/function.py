@@ -1,8 +1,17 @@
 import inspect
 import re
+from types import ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
+from .. import stdout
+
+from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
+from .object import ObjectDescription
 from . import format
+
+builtins = __builtins__
+
+ALLOWED_TYPES = (ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType)
 
 def parameters(
     obj:Callable,
@@ -54,7 +63,10 @@ def signature(
     - bound methods of classes should not show `self` as first parameter; and
     - `__init__` methods should show the name of the class instead, i.e. how to create an instance.
     """
-    _signature = inspect.signature(obj=obj)
+    _signature = inspect.Signature.from_callable(
+        obj=obj,
+        follow_wrapped=True,
+    )
     
     # Get rid of self/cls/self_cls/cls_self etc
     _signature = _signature.replace(
@@ -111,3 +123,56 @@ def signature_source_code(
     )
 
     return _formatted_code
+
+
+def raises(obj:Callable)->List[str]:
+    """
+    Return a list of `str` names of `BaseException`s that are mentioned literally in the source code of the callable.
+    """
+    RAISES_PATTERN = re.compile(r"(?<=[:\n])\s*raise\s+(?P<exception_type>[A-Z][\w\._]+)\(", re.MULTILINE)
+    
+    _exceptions = []
+    for _raise in RAISES_PATTERN.finditer(inspect.getsource(obj)):
+        _type_name = _raise.group("exception_type")
+
+        # We can't actually resolve _type_name into the actual class because of different local and global contextes.
+        _exceptions.append(_type_name)
+
+    return _exceptions
+
+
+class FunctionDescription(ObjectDescription):
+    """
+    Describe a function/method in `dict` form.
+    """
+    obj:Union.__getitem__(ALLOWED_TYPES)
+
+    def __init__(
+        self, obj: Callable
+    ) -> None:
+        
+        assert isinstance(obj, ALLOWED_TYPES), f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
+
+        if (isinstance(obj, type)):
+            raise ValueError(f"Ambigious {type(self).__name__} call on class {stdout.red(type(obj).__name__)}: please specify if you want to descirbe {type(self).__name__}.__init__, {type(self).__name__}.__new__ or {type(self).__name__}.__call__.")
+
+        super().__init__(obj)
+
+    @JSONDescriptionCachedProperty
+    def raises(self) -> List[BaseException]:
+        return raises(self.obj)
+
+    @JSONDescriptionLRUCache
+    def signature(self, *args, **kwargs) -> inspect.Signature:
+        return signature(self.obj, *args, **kwargs)
+
+    @JSONDescriptionLRUCache
+    def parameters(self, *args, **kwargs) -> List[inspect.Signature]:
+        return parameters(self.obj, *args, **kwargs)
+
+    @JSONDescriptionCachedProperty
+    def signature_source_code(self) -> str:
+        return signature_source_code(
+            obj=self.obj,
+        )
+    
