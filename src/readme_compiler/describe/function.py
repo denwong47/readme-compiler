@@ -7,6 +7,7 @@ from .. import stdout
 
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
+from .parameter import ParameterDescription
 from . import format
 
 builtins = __builtins__
@@ -148,7 +149,9 @@ class FunctionDescription(ObjectDescription):
     obj:Union.__getitem__(ALLOWED_TYPES)
 
     def __init__(
-        self, obj: Callable
+        self,
+        obj: Callable,
+        metadata: Dict[str, Any] = None,
     ) -> None:
         
         assert isinstance(obj, ALLOWED_TYPES), f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
@@ -156,7 +159,7 @@ class FunctionDescription(ObjectDescription):
         if (isinstance(obj, type)):
             raise ValueError(f"Ambigious {type(self).__name__} call on class {stdout.red(type(obj).__name__)}: please specify if you want to descirbe {type(self).__name__}.__init__, {type(self).__name__}.__new__ or {type(self).__name__}.__call__.")
 
-        super().__init__(obj)
+        super().__init__(obj, metadata)
 
     @JSONDescriptionCachedProperty
     def raises(self) -> List[BaseException]:
@@ -169,6 +172,15 @@ class FunctionDescription(ObjectDescription):
     @JSONDescriptionLRUCache
     def parameters(self, *args, **kwargs) -> List[inspect.Signature]:
         return parameters(self.obj, *args, **kwargs)
+
+    @JSONDescriptionProperty
+    def parameters_descriptions(self) -> List[ParameterDescription]:
+        return list(
+            map(
+                ParameterDescription,
+                self.parameters()
+            )
+        )
 
     @JSONDescriptionCachedProperty
     def signature_source_code(self) -> str:

@@ -15,4 +15,4 @@ class ModuleDescription(ObjectDescription):
     """
     obj:ModuleType
 
-    # .modules() already work 
+    

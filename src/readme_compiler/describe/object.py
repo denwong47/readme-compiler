@@ -25,8 +25,10 @@ class ObjectDescription():
     def __init__(
         self,
         obj:Callable,
+        metadata: Dict[str, Any] = None,
     ) -> None:
         self.obj = obj
+        self.metadata = metadata
     
     @JSONDescriptionCachedProperty
     def name(self) -> str:
@@ -35,8 +37,8 @@ class ObjectDescription():
     @JSONDescriptionCachedProperty
     def qualname(self) -> str:
         if (_return := getattr(self.obj, "__qualname__", None)):
-            if (self.obj.__qualname__ == self.obj.__name__ and \
-                self.obj.__module__):
+            if (self.obj.__module__ and \
+                self.obj.__module__ not in self.obj.__qualname__):
 
                 _return = ".".join([
                     self.obj.__module__,
@@ -70,7 +72,7 @@ class ObjectDescription():
     @property
     def json(self) -> Dict[str, str]:      
         return {
-            _key:(getattr(self, _key) if (not isinstance(_construct, JSONDescriptionLRUCache)) else getattr(self, _key)(self)) \
+            _key:(getattr(self, _key) if (not isinstance(_construct, JSONDescriptionLRUCache)) else getattr(self, _key)()) \
                 for _key in dir(self) \
                     if (isinstance(_construct := getattr(type(self), _key, None), JSONDescriptionElement)) # Make sure to getattr from type(self) - otherwise we `property`s would have returned the VALUE instead of itself!
         }

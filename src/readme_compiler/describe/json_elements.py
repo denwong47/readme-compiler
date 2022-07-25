@@ -1,7 +1,7 @@
 import functools
 import inspect
 
-from typing import Any
+from typing import Any, Callable
 
 class JSONDescriptionElement():
     """
@@ -45,15 +45,52 @@ class JSONDescriptionLRUCache(JSONDescriptionElement):
             inspect.getmodule(self._wrapped) is functools and \
             self._wrapped.__qualname__.startswith("lru_cache")
         ) # if the wrapped function remained a `lru_cache.<locals>.decorating_function`, that means it hasn't be called yet; flag it so `__call__` know what to do.
-        
+
+    def __get__(
+        self,
+        obj:Any,
+        objtype:type=None,
+        *args,
+        **kwargs,
+    ) -> Any:
+        """
+        Bound method mode.
+        Triggered when:
+        ```
+        @JSONDescriptionLRUCache    # No args
+        def decorated():
+            ...
+        ```
+        In this context, `JSONDescriptionLRUCache` will
+        - first use `__init__` to wrap around `decorated`; then
+        - my_instance.decorated will be an `JSONDescriptionLRUCache` instance.
+        - when myinstance.decorated is retrieved, `__get__` will trigger, and we return a decorated BOUND to myinstance.
+        - then myinstance.decorated(*args, **kwargs) will pass the parameters into the resultant bound method.
+        """
+        if (obj is not None):
+            # If this is an instance call
+            return self._wrapped.__get__(obj)
+        else:
+            # If this is a class call
+            return self
+
     def __call__(
         self,
         *args: Any,
         **kwargs: Any
     ) -> Any:
-
+        """
+        Decorator mode.
+        Triggered when:
+        ```
+        @JSONDescriptionLRUCache(some_args...)
+        def decorated():
+            ...
+        ```
+        In this context, `JSONDescriptionLRUCache` does not have a parent, so `__get__` won't trigger.
+        """
+        
         if (self.is_decorator):
-            self._wrapped = self._wrapped(*args, **kwargs)
+            self._wrapped = self._wrapped(*args, **kwargs) # This returned the wrapped function without any reference to this `JSONDescriptionLRUCache` instance. This doesn't matter as we check `JSONDescriptionLRUCache` on the class, not instance.
             return self
-        else:
-            return self._wrapped(*args, **kwargs)
+        
