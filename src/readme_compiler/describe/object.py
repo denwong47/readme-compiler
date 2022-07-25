@@ -2,6 +2,7 @@ import functools
 import inspect
 import re
 
+from types import ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from .. import stdout
@@ -33,7 +34,21 @@ class ObjectDescription():
     
     @JSONDescriptionCachedProperty
     def qualname(self) -> str:
-        return self.obj.__qualname__
+        if (_return := getattr(self.obj, "__qualname__", None)):
+            if (self.obj.__qualname__ == self.obj.__name__ and \
+                self.obj.__module__):
+
+                _return = ".".join([
+                    self.obj.__module__,
+                    self.obj.__qualname__
+                ])
+
+        elif (_return := getattr(self.obj, "__name__")):
+            pass
+        else:
+            _return = None
+
+        return _return
 
     @JSONDescriptionCachedProperty
     def doc(self) -> Union[str, None]:
@@ -71,3 +86,96 @@ class ObjectDescription():
             else:
                 print (f"{stdout.yellow(type(_value).__name__)} instance: {stdout.white(str(_value))}")
             print ("")
+
+    def children(
+        self,
+        *,
+        dunder:bool=True,
+        sunder:bool=True,
+        classes:Tuple[type]=None,
+        modules:Tuple[ModuleType]=None,
+    ) -> Iterable[Any]:
+        """
+        Get children of the object, filtered by the parameters specified.
+        """
+
+        for _attr in filter(
+            # Filter
+            lambda name: (
+                # Double Underscores
+                (
+                    name.startswith("__") and \
+                    name.endswith("__") and \
+                    len(name)>4
+                ) \
+                    if dunder else True
+            ) and (
+                # Single Underscores
+                (
+                    name.startswith("_") and \
+                    len(name)>1 and \
+                    name[1]!="_"
+                ) \
+                    if sunder else True
+            ),
+            dir(self.obj)
+        ):
+            _value = getattr(self.obj, _attr)
+
+            # If the value is not of the right class, skip it
+            if (classes):
+                if (not isinstance(_value, classes)): continue
+
+            # If the value is not of the right module, skip it
+            if (modules):
+                
+                modules = [ 
+                    _module.__name__ if (isinstance(_module, ModuleType)) else _module \
+                        for _module in modules
+                ]
+
+                if (not any(
+                    map(
+                        lambda _module_name: inspect.getmodule(_value).__name__.startswith(_module_name),
+                        modules
+                    )
+                )): continue
+
+            yield _value
+            
+    @JSONDescriptionCachedProperty
+    def modules(self):
+        """
+        Return an Iterator of all children modules of object
+        """
+        return self.children(
+            dunder=False,
+            sunder=False,
+            classes=(ModuleType, ),
+            modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
+        )
+
+    @JSONDescriptionCachedProperty
+    def classes(self):
+        """
+        Return an Iterator of all children modules of object
+        """
+        return self.children(
+            dunder=False,
+            sunder=False,
+            classes=(type, ),
+            modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
+        )
+
+    @JSONDescriptionCachedProperty
+    def functions(self):
+        """
+        Return an Iterator of all children modules of object
+        """
+        return self.children(
+            dunder=False,
+            sunder=False,
+            classes=(FunctionType, MethodType, ),
+            modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
+        )
+    
