@@ -12,7 +12,7 @@ from .object import ObjectDescription
 from . import format
 
 
-class AnnotationDescription():
+class AnnotationDescription(ObjectDescription):
     """
     Describe an Annotation with simplified language.
     """
@@ -147,6 +147,10 @@ class ParameterDescription(ObjectDescription):
     def qualname(self) -> str:
         raise AttributeError(f"Parameter '{self.name}' does not have a qualified name.")
 
+    @property
+    def source(self) -> str:
+        raise AttributeError(f"Parameter '{self.name}' does not have a source code.")
+
     @JSONDescriptionCachedProperty
     def kind(self) -> inspect._ParameterKind:
         return self.obj.kind
@@ -155,11 +159,17 @@ class ParameterDescription(ObjectDescription):
     def kind_description(self) -> str:
         _descriptors = []
 
+        _descriptors.append("Optional" if (self.optional) else "Mandatory")
+        if (self.position_description): _descriptors.append(self.position_description)
+        _descriptors.append("Parameter")
+
+        return " ".join(_descriptors)
+
     @JSONDescriptionCachedProperty
     def optional(self) -> bool:
         return not (self.obj.default is inspect.Parameter.empty)
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def position_description(self) -> str:
         if (self.kind is inspect.Parameter.VAR_POSITIONAL):
             return "Positional-Only"
@@ -180,6 +190,6 @@ class ParameterDescription(ObjectDescription):
     def annotation_description(self) -> AnnotationDescription:
         return AnnotationDescription(self.annotation)
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def annotation_markdown(self) -> str:
         return self.annotation_description.markdown

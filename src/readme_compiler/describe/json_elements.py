@@ -1,12 +1,68 @@
 import functools
 import inspect
 
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
+
+import readme_compiler.describe as describe
 
 class JSONDescriptionElement():
     """
     Superclass to contain all elements to be exported in the JSON.
     """
+    @classmethod
+    def with_metadata_override(
+        cls,
+        func:Callable,
+    )->Callable:
+        """
+        Decorator allowing method to overwrite data extracted from object with those provided in the JSON metadata.
+        """
+        @functools.wraps(func)
+        def _wrapper(
+            self:"describe.ObjectDescription",
+            *args,
+            **kwargs,
+        )->Any:
+            _metadata = getattr(self, "metadata", None)
+            if (_metadata is None): _metadata = {}
+
+            _return = func(self, *args, **kwargs)
+                
+            # we use hasattr here so that we allow None and "" overrides from metadata.
+            if (func.__name__ in _metadata):
+                _metadata_for_attr = _metadata.get(func.__name__, None)
+                
+                if (
+                    isinstance(_return, Iterable) and \
+                    not isinstance(_return, str) and \
+                    any(
+                        [
+                            isinstance(_item, describe.ObjectDescription) \
+                                for _item in _return
+                        ]
+                    )
+                ):
+                    # [ ObjectDescription(...), ObjectDescription(...), ... ]
+                    for _item in _return:
+                        if (isinstance(_item, describe.ObjectDescription)):
+                            _item.metadata = _metadata_for_attr.get(_item.name, None)
+
+                elif (isinstance(_return, describe.ObjectDescription)):
+                    # 
+                    _return.metadata = _metadata_for_attr
+                else:
+                    # Metadata exists, and return is scalar, then use the metadata instead.
+                    if (isinstance(_metadata_for_attr, str)):
+                        _return = inspect.cleandoc(_metadata_for_attr)
+                    else:
+                        _return = _metadata_for_attr
+
+                    
+                
+            return _return
+
+        # Remember to decorate the _wrapper with itself too! Otherwise no property for you.
+        return cls(_wrapper)
 
 class JSONDescriptionProperty(property, JSONDescriptionElement):
     """

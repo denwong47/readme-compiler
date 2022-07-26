@@ -52,7 +52,7 @@ class ObjectDescription():
 
         return _return
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def doc(self) -> Union[str, None]:
         _doc = inspect.getdoc(self.obj)
 
@@ -61,7 +61,7 @@ class ObjectDescription():
 
         return _doc
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def comments(self) -> Union[str, None]:
         return inspect.getcomments(self.obj)
 
@@ -77,16 +77,39 @@ class ObjectDescription():
                     if (isinstance(_construct := getattr(type(self), _key, None), JSONDescriptionElement)) # Make sure to getattr from type(self) - otherwise we `property`s would have returned the VALUE instead of itself!
         }
 
-    def explain(self) -> None:
-        for _key, _value in zip(self.json, self.json.values()):
-            print (stdout.blue(_key) + ":")
+    @property
+    def title(self) -> str:
+        return f"{stdout.cyan(type(self).__name__)}{stdout.blue(' of ')}{stdout.cyan(self.obj)}{stdout.blue(' from module ')}{stdout.cyan(ObjectDescription(self.module).qualname)}"
 
-            if isinstance(_value, (str, list, dict, tuple, set, int, float)):
-                print (_value)
+    def explain(self, *, indent:int=0) -> None:
+        print (" "*indent + self.title)
+        print ("")
+        for _key, _value in zip(self.json, self.json.values()):
+            print (" "*indent + "- " +stdout.blue(_key) + ":")
+
+            if (
+                isinstance(_value, (list, tuple, set)) and \
+                all(map(
+                    lambda obj: isinstance(obj, ObjectDescription),
+                    _value
+                ))
+            ):
+                print ("")
+                for _id, _obj in enumerate(_value):
+                    _title = (" " + stdout.blue(_key) + "[] " + stdout.white(f"Element #{_id:,} ")).center(120, "-")
+                    
+                    print (" "*(indent+4)+_title+"\n"*2)
+
+                    _obj.explain(indent=indent+4)
+                    print ("\n")
+            elif isinstance(_value, (str, list, dict, tuple, set, int, float)):
+                print (" "*(indent+2) +str(_value).replace("\n", "\n"+" "*(indent+2)))
             elif (_value is None):
-                print (stdout.magenta("None"))
+                print (" "*(indent+2) +stdout.magenta("None"))
+            elif (isinstance(_value, type)):
+                print (" "*(indent+2) +f"{stdout.yellow(_value.__name__)} class")
             else:
-                print (f"{stdout.yellow(type(_value).__name__)} instance: {stdout.white(str(_value))}")
+                print (" "*(indent+2) +f"{stdout.yellow(type(_value).__name__)} instance: {stdout.white(str(_value))}")
             print ("")
 
     def children(
@@ -144,6 +167,13 @@ class ObjectDescription():
                 )): continue
 
             yield _value
+
+    @JSONDescriptionCachedProperty
+    def module(self)->ModuleType:
+        """
+        Guess the module where the object came from.
+        """
+        return inspect.getmodule(self.obj)
             
     @JSONDescriptionCachedProperty
     def modules(self):
@@ -157,7 +187,7 @@ class ObjectDescription():
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
         )
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def classes(self):
         """
         Return an Iterator of all children modules of object
@@ -169,7 +199,7 @@ class ObjectDescription():
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
         )
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionCachedProperty.with_metadata_override
     def functions(self):
         """
         Return an Iterator of all children modules of object

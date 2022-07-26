@@ -173,7 +173,7 @@ class FunctionDescription(ObjectDescription):
     def parameters(self, *args, **kwargs) -> List[inspect.Signature]:
         return parameters(self.obj, *args, **kwargs)
 
-    @JSONDescriptionProperty
+    @JSONDescriptionProperty.with_metadata_override
     def parameters_descriptions(self) -> List[ParameterDescription]:
         return list(
             map(
