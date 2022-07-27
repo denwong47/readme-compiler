@@ -2,8 +2,9 @@ import functools
 import inspect
 import re
 
-from types import ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
+from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args
+import typing
 
 from .. import stdout
 
@@ -22,6 +23,9 @@ class ObjectDescription():
     """
     obj:object
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.qualname})"
+
     def __init__(
         self,
         obj:Callable,
@@ -37,7 +41,7 @@ class ObjectDescription():
     @JSONDescriptionCachedProperty
     def qualname(self) -> str:
         if (_return := getattr(self.obj, "__qualname__", None)):
-            if (self.obj.__module__ and \
+            if (getattr(self.obj, "__module__", None) and \
                 self.obj.__module__ not in self.obj.__qualname__):
 
                 _return = ".".join([
@@ -45,8 +49,10 @@ class ObjectDescription():
                     self.obj.__qualname__
                 ])
 
-        elif (_return := getattr(self.obj, "__name__")):
+        elif (_return := getattr(self.obj, "__name__", None)):
             pass
+        elif (isinstance(self.obj, typing._GenericAlias)):
+            _return = f"{get_origin(self.obj).__name__.title()}[{', '.join(map(str, get_args(self.obj)))}]"
         else:
             _return = None
 
@@ -207,7 +213,7 @@ class ObjectDescription():
         return self.children(
             dunder=False,
             sunder=False,
-            classes=(FunctionType, MethodType, ),
+            classes=(FunctionType, MethodType, MethodWrapperType, ),
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
         )
     

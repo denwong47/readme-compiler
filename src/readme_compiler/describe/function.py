@@ -1,6 +1,6 @@
 import inspect
 import re
-from types import ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType
+from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from .. import stdout
@@ -10,9 +10,16 @@ from .object import ObjectDescription
 from .parameter import ParameterDescription
 from . import format
 
-builtins = __builtins__
 
-ALLOWED_TYPES = (ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType)
+
+ALLOWED_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
+
+def isbound(func:Callable) -> Union[Any, None]:
+    """
+    Return the bound object if `func` is a bound method,
+    or return None if `func` is unbound.
+    """
+    return getattr(func, "__self__", None)
 
 def parameters(
     obj:Callable,
@@ -90,6 +97,7 @@ def signature_source_code(
     PLACEHOLDER_PATTERN = re.compile(r":\s+"+re.escape(PLACEHOLDER_CODE)+r"\s*$", re.MULTILINE)
 
     DUNDER_INIT_NAME    = "__init__"
+    DUNDER_NEW_NAME    = "__new__"
 
     _signature = signature(
         obj=obj,
@@ -103,17 +111,36 @@ def signature_source_code(
     # Further transformations:
 
     # Changing the name of the declaration.
-    if (obj.__name__ == DUNDER_INIT_NAME):
+    if (obj.__name__ in (
+        DUNDER_INIT_NAME,
+        DUNDER_NEW_NAME,
+    )):
         # subsitute __init__ with the class name
         _formatted_code = _formatted_code.replace(
             f"def {obj.__name__}",
             obj.__qualname__.split(".")[-2], # Get only the Class name
         )
-    else:
-        # subsitute name with full qualified name
+    elif (isinstance(obj, classmethod)):
+        # subsitute __new__ with the class name
         _formatted_code = _formatted_code.replace(
             obj.__name__,
             obj.__qualname__,
+            1,
+        )
+    else:
+        # subsitute name with full qualified name
+        if (
+            len(_split_qualname := obj.__qualname__.split(".")) > 1
+        ):
+            _split_qualname[-2] += "(...)"
+
+            __qualname__ = ".".join(_split_qualname)
+        else:
+            __qualname__ = obj.__qualname__
+
+        _formatted_code = _formatted_code.replace(
+            obj.__name__,
+            __qualname__,
             1,
         )
 
@@ -153,7 +180,6 @@ class FunctionDescription(ObjectDescription):
         obj: Callable,
         metadata: Dict[str, Any] = None,
     ) -> None:
-        
         assert isinstance(obj, ALLOWED_TYPES), f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
 
         if (isinstance(obj, type)):
@@ -164,6 +190,10 @@ class FunctionDescription(ObjectDescription):
     @JSONDescriptionCachedProperty
     def raises(self) -> List[BaseException]:
         return raises(self.obj)
+
+    @JSONDescriptionCachedProperty
+    def isbound(self) -> Union[Any, None]:
+        return isbound(self.obj)
 
     @JSONDescriptionLRUCache
     def signature(self, *args, **kwargs) -> inspect.Signature:
