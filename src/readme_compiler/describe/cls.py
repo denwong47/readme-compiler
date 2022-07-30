@@ -1,7 +1,16 @@
 import builtins
 import inspect
 import re
-from types import SimpleNamespace, ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType
+from types import   SimpleNamespace, \
+                    ModuleType, \
+                    MethodType, \
+                    FunctionType, \
+                    TracebackType, \
+                    FrameType, \
+                    CodeType, \
+                    WrapperDescriptorType, \
+                    MethodWrapperType, \
+                    MethodDescriptorType
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from .. import stdout
@@ -11,6 +20,11 @@ from .object import ObjectDescription
 from .function import FunctionDescription
 from . import format
 
+BuiltInMethodTypes = (
+    WrapperDescriptorType,
+    MethodWrapperType,
+    MethodDescriptorType,
+)
 class ClassDescription(ObjectDescription):
     """
     An object representing the various properties of a class.
@@ -37,11 +51,27 @@ class ClassDescription(ObjectDescription):
 
     @JSONDescriptionCachedProperty
     def init(self) -> Callable[[Any], None]:
-        return self.obj.__init__
+        _init_method = self.obj.__init__
+
+        if (not isinstance(_init_method, BuiltInMethodTypes)):
+            return _init_method
+        else:
+            # This means that __init__ is an inherited method from a built-in type,
+            # e.g. `object.__init__`
+            # This is not going to incredibly useful; so lets return `None`.
+            return None
     
     @JSONDescriptionCachedProperty.with_metadata_override
     def init_description(self) -> FunctionDescription:
-        return FunctionDescription(self.init)
+        if (callable(self.init)):
+            # We have a valid __init__
+            return FunctionDescription(self.init)
+        else:
+            # Fake __init__
+            def __init__(self, *args, **kwargs)->None: return super().__init__(*args, **kwargs)
+            __init__ = __init__.__get__(self.obj) # Manually bind the method to `obj`
+
+            return FunctionDescription(__init__)
     
     @JSONDescriptionCachedProperty
     def context(self) -> Tuple[

@@ -3,7 +3,7 @@ import inspect
 import re
 
 from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args, get_type_hints
 import typing
 
 from .. import stdout
@@ -14,6 +14,8 @@ from .json_elements import  JSONDescriptionElement, \
                             JSONDescriptionCachedProperty, \
                             JSONDescriptionLRUCache, \
                             JSONDescriptionProperty
+
+import readme_compiler.describe as describe
 
 print = logger.info
 
@@ -33,6 +35,17 @@ class ObjectDescription():
     ) -> None:
         self.obj = obj
         self.metadata = metadata
+
+    @property
+    def metadata(self) -> dict:
+        return self._metadata
+    
+    @metadata.setter
+    def metadata(self, value:dict):
+        if (value):
+            self._metadata = value
+        else:
+            self._metadata = {}
     
     @JSONDescriptionCachedProperty
     def name(self) -> str:
@@ -75,6 +88,13 @@ class ObjectDescription():
     def source(self) -> str:
         return inspect.getsource(self.obj)
 
+    @JSONDescriptionProperty
+    def isabstract(self) -> bool:
+        """
+        Return `True` if the object is markes as abstract by `abc`.
+        """
+        return inspect.isabstract(self.obj)
+
     @property
     def json(self) -> Dict[str, str]:      
         return {
@@ -93,23 +113,46 @@ class ObjectDescription():
         for _key, _value in zip(self.json, self.json.values()):
             print (" "*indent + "- " +stdout.blue(_key) + ":")
 
+            # Expand generators
             if (
-                isinstance(_value, (list, tuple, set)) and \
+                isinstance(
+                    _value, 
+                    (map, filter,)
+                ) or \
+                inspect.isgenerator(_value)
+            ):
+                _expanded_value = list(_value)
+            else:
+                _expanded_value = _value
+
+            if (
+                isinstance(_expanded_value, (list, tuple, set)) and \
                 all(map(
                     lambda obj: isinstance(obj, ObjectDescription),
-                    _value
+                    _expanded_value
                 ))
             ):
                 print ("")
-                for _id, _obj in enumerate(_value):
+                for _id, _obj in enumerate(_expanded_value):
                     _title = (" " + stdout.blue(_key) + "[] " + stdout.white(f"Element #{_id:,} ")).center(120, "-")
                     
                     print (" "*(indent+4)+_title+"\n"*2)
 
                     _obj.explain(indent=indent+4)
                     print ("\n")
-            elif isinstance(_value, (str, list, dict, tuple, set, int, float)):
-                print (" "*(indent+2) +str(_value).replace("\n", "\n"+" "*(indent+2)))
+            elif (
+                isinstance(_expanded_value, (str, list, dict, tuple, set, int, float,))
+            ):
+                print (
+                    " "*(indent+2) +\
+                    str(
+                        _expanded_value
+                    ).replace(
+                        "\n",
+                        "\n"+" "*(indent+2) # Add our own indentation
+                    )
+                )
+
             elif (_value is None):
                 print (" "*(indent+2) +stdout.magenta("None"))
             elif (isinstance(_value, type)):
@@ -134,20 +177,20 @@ class ObjectDescription():
             # Filter
             lambda name: (
                 # Double Underscores
-                (
+                not (
                     name.startswith("__") and \
                     name.endswith("__") and \
                     len(name)>4
                 ) \
-                    if dunder else True
+                    if (not dunder) else True
             ) and (
                 # Single Underscores
-                (
+                not (
                     name.startswith("_") and \
                     len(name)>1 and \
                     name[1]!="_"
                 ) \
-                    if sunder else True
+                    if (not sunder) else True
             ),
             dir(self.obj)
         ):
@@ -216,4 +259,65 @@ class ObjectDescription():
             classes=(FunctionType, MethodType, MethodWrapperType, ),
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
         )
-    
+     
+    # Don't cache this - its a map object. If you cache it, it will returned the last exhausted Generator!
+    @JSONDescriptionProperty.with_metadata_override
+    def attributes_descriptions(self):
+        """
+        Return an Iterator of all children attributes which are not modules, classes and functions.
+        """
+
+        REMOVE_TYPES = (
+            ModuleType,
+            type,
+            FunctionType,
+            MethodType,
+            MethodWrapperType,
+        )
+
+        dunder:bool = False
+        sunder:bool = False
+
+        def _valid_attributes(name:str):
+            # dunder
+            if (not dunder and (
+                name.startswith("__") and \
+                name.endswith("__") and \
+                len(name)>4
+            )): return False
+            
+            # sunder
+            if (not sunder and (
+                name.startswith("_") and \
+                len(name)>1 and \
+                name[1] != "_"
+            )): return False
+
+            # REMOVE_TYPES
+            if (isinstance(
+                getattr(self.obj, name, inspect._empty),
+                REMOVE_TYPES
+            )): return False
+
+            return True
+
+        _attrs = set(
+            dir(self.obj) + list(get_type_hints(self).keys())
+        )
+
+        _metadata = self.metadata if (self.metadata) else {}
+
+        return map(
+            lambda attr: describe.attribute.AttributeDescription.getattr(
+                parent      =   self.obj,
+                name        =   attr,
+                # comments    =   _metadata.get(attr, {}).get("comments", None),
+                # doc         =   _metadata.get(attr, {}).get("doc", None),
+                # annotation  =   get_type_hints(self).get(attr, inspect._empty),
+                metadata    =   _metadata.get(attr, None)
+            ),
+            filter(
+                _valid_attributes,
+                _attrs,
+            )
+        )

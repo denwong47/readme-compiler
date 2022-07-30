@@ -1,7 +1,10 @@
 import functools
 import inspect
 
-from typing import Any, Callable, Iterable
+import typing
+from typing import Any, Callable, Iterable, Optional
+
+
 
 import readme_compiler.describe as describe
 
@@ -19,7 +22,7 @@ class JSONDescriptionElement():
         """
         @functools.wraps(func)
         def _wrapper(
-            self:"describe.ObjectDescription",
+            self:"describe.object.ObjectDescription",
             *args,
             **kwargs,
         )->Any:
@@ -37,17 +40,17 @@ class JSONDescriptionElement():
                     not isinstance(_return, str) and \
                     any(
                         [
-                            isinstance(_item, describe.ObjectDescription) \
+                            isinstance(_item, describe.object.ObjectDescription) \
                                 for _item in _return
                         ]
                     )
                 ):
                     # [ ObjectDescription(...), ObjectDescription(...), ... ]
                     for _item in _return:
-                        if (isinstance(_item, describe.ObjectDescription)):
+                        if (isinstance(_item, describe.object.ObjectDescription)):
                             _item.metadata = _metadata_for_attr.get(_item.name, None)
 
-                elif (isinstance(_return, describe.ObjectDescription)):
+                elif (isinstance(_return, describe.object.ObjectDescription)):
                     # 
                     _return.metadata = _metadata_for_attr
                 else:
@@ -68,6 +71,54 @@ class JSONDescriptionProperty(property, JSONDescriptionElement):
     """
     Wrapper around `property`.
     """
+
+    @classmethod
+    def as_stored_attribute(
+        cls:"JSONDescriptionProperty",
+        name:str,
+        *,
+        annotation:typing._GenericAlias = Optional[Any],
+        default:Any = None,
+        transform_fget:Callable[[Any, Optional[Any]], Any] = None,
+        transform_fset:Callable[[Any, Optional[Any]], Any] = None,
+    )->"JSONDescriptionProperty":
+        """
+        Create a new property with `fget`, `fset` and `fdel` setup to reference a hidden attribute.
+        
+        For example:
+        ```python
+        class MyClass():
+            my_attr = JSONDescriptionProperty.as_stored_attribute("my_attr")
+        ```
+        will result in a hidden property called `MyClass._my_attr`, which stores the value of `my_attr`.
+
+        NOT A DECORATOR.
+        """
+        _attr_name = "_"+str(name)
+        def _fget(self)->annotation:
+            _value = getattr(self, _attr_name, default)
+
+            # Transform if specified
+            if (callable(transform_fget)):
+                _value = transform_fget(self, _value)
+
+            return _value
+        
+        def _fset(self, value:annotation)->None:
+            # Transform if specified
+            if (callable(transform_fset)):
+                value = transform_fset(self, value)
+
+            setattr(self, _attr_name, value)
+
+        def _fdel(self)->None:
+            delattr(self, _attr_name)
+
+        return cls(
+            fget=_fget,
+            fset=_fset,
+            fdel=_fdel,
+        )
 
 class JSONDescriptionCachedProperty(functools.cached_property, JSONDescriptionElement):
     """

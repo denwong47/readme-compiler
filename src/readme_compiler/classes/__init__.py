@@ -93,7 +93,11 @@ class RepositoryDirectory():
             ")"
 
     @property
-    def path(self)->str: return self.settings.root
+    def path(self)->str:
+        """
+        Return the local path of the git repository.
+        """
+        return self.settings.root
 
     @path.setter
     def path(self, value:str): self.settings.root = value

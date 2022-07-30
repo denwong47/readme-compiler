@@ -1,16 +1,16 @@
 import inspect
 import re
 from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
+import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from .. import stdout
 
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
-from .parameter import ParameterDescription
+from .parameter import AnnotationDescription, ParameterDescription
 from . import format
-
-
+from . import exceptions
 
 ALLOWED_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
 
@@ -175,13 +175,27 @@ class FunctionDescription(ObjectDescription):
     """
     obj:Union.__getitem__(ALLOWED_TYPES)
 
+    def __new__(
+        cls: type["FunctionDescription"],
+        obj: Callable,
+        *args,
+        **kwargs,
+    ) -> Union[
+        exceptions.ObjectNotDescribable,
+        "FunctionDescription",
+    ]:
+        if (not isinstance(obj, ALLOWED_TYPES)):
+            return exceptions.ObjectNotDescribable(
+                f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
+            )
+
+        return super().__new__(cls)
+
     def __init__(
         self,
         obj: Callable,
         metadata: Dict[str, Any] = None,
     ) -> None:
-        assert isinstance(obj, ALLOWED_TYPES), f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
-
         if (isinstance(obj, type)):
             raise ValueError(f"Ambigious {type(self).__name__} call on class {stdout.red(type(obj).__name__)}: please specify if you want to descirbe {type(self).__name__}.__init__, {type(self).__name__}.__new__ or {type(self).__name__}.__call__.")
 
@@ -218,3 +232,18 @@ class FunctionDescription(ObjectDescription):
             obj=self.obj,
         )
     
+    @JSONDescriptionCachedProperty
+    def return_annotation(self) -> Union[typing._GenericAlias, type]:
+        """
+        Return the annotation object for the return value.
+        """
+        return self.signature().return_annotation
+
+    @JSONDescriptionCachedProperty
+    def return_descriptino(self) -> "AnnotationDescription":
+        """
+        Return the `AnnotationDescription` object for the return value's annotation.
+        """
+        return AnnotationDescription(
+            self.return_annotation
+        )
