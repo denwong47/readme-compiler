@@ -38,11 +38,14 @@ class JSONDescriptionElement():
                 if (
                     isinstance(_return, Iterable) and \
                     not isinstance(_return, str) and \
-                    any(
-                        [
-                            isinstance(_item, describe.object.ObjectDescription) \
-                                for _item in _return
-                        ]
+                    (
+                        any(
+                            [
+                                isinstance(_item, describe.object.ObjectDescription) \
+                                    for _item in _return
+                            ]
+                        ) or \
+                        len(_return) <= 0 # This is important - otherwise empty properties like `methods_descriptions` will get replaced by the `dict` in metadata!
                     )
                 ):
                     # [ ObjectDescription(...), ObjectDescription(...), ... ]
