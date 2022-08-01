@@ -1,6 +1,6 @@
 import os, sys
 
-
+import contextvars
 from datetime import datetime
 import enum
 import functools
@@ -28,6 +28,7 @@ from .repopath import RepositoryPath
 from .transformers import   transformers, \
                             Transformer, \
                             TransformerMeta 
+
 
 
 class RepositoryDirectory():
@@ -111,6 +112,7 @@ class RepositoryDirectory():
         return DjangoContext({
             "repository_object": self,  # This is not for Template syntax use - more for Template tags.
             "git": self.git,
+            "globals": bin.map_unders(globals()),
         })
 
     # Cache the output - in case we repeat stuff because of embed etc.

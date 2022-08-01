@@ -2,18 +2,18 @@
 
 """
 
-import os
+import os, sys
 from distutils import dir_util, file_util
 import logging
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List
+from typing import Any, Dict, List, Tuple, Union
 
 from .classes import MarkdownTemplateMode
 from . import settings
 from .log import logger
 
-print = logger.debug
+# print = logger.debug
 
 def is_markdown(filename:str)->bool:
     if (isinstance(settings.FILE_EXTENSION_MARKDOWN, str)): settings.FILE_EXTENSION_MARKDOWN = (settings.FILE_EXTENSION_MARKDOWN, )
@@ -240,3 +240,59 @@ def prepare_markdown_path(
             pass
 
     return _parsed
+
+
+def map_unders(
+    obj:Dict[str,Any],
+    *,
+    titles:Tuple[str, str]=("sunder", "dunder"),
+)->None:
+    """
+    Add new keys to the dict, defaulting to `sunder` and `dunder`,
+    mapping the existing single underscore and doubleunderscore keys to it.
+
+    
+
+    NOTE This changes the `obj` in place..
+    """
+    if (not isinstance(obj, dict)):
+        dict_obj = obj.__dict__
+    else:
+        dict_obj = obj
+
+    _dunder_keys = list(filter(
+        # Double Underscores
+        lambda name: (
+            name.startswith("__") and \
+            name.endswith("__") and \
+            len(name)>4
+        ),
+        dict_obj.keys()
+    ))
+    
+    _sunder_keys = list(filter(
+        # Single Underscores
+        lambda name: (
+            name.startswith("_") and \
+            len(name)>1 and \
+            name[1]!="_"
+        ),
+        dict_obj.keys()
+    ))
+
+    _mapper = {
+        titles[0]: { name[1:]:dict_obj[name] for name in _sunder_keys }, # Sunder
+        titles[1]: { name[2:-2]:dict_obj[name] for name in _dunder_keys }, # Dunder
+    }
+
+    for _replacement_key, _replacement_values in zip(_mapper, _mapper.values()):
+
+        if (isinstance(obj, dict)):
+            # e.g
+            # obj["dunder"]
+            obj[_replacement_key] = _replacement_values
+        else:
+            setattr(obj, _replacement_key, SimpleNamespace(**_replacement_values))
+
+    return obj
+    

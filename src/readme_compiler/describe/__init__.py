@@ -7,7 +7,6 @@ NOTE This module is not directly imported into `readme_compiler.__init__.py`;
 see `_mapper.py` for the actual interface.
 """
 
-from . import format
 
 from . import json_elements
 

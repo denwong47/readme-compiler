@@ -5,13 +5,12 @@ from types import ModuleType
 import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, ForwardRef, get_origin, get_args, get_type_hints
 
-from .. import stdout
 
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
 from .annotation import PropertyType
 from .parameter import AnnotationDescription
-from . import format
+
 
 from . import exceptions
 

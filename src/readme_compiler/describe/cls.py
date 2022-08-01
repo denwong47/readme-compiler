@@ -18,7 +18,8 @@ from .. import stdout
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
 from .function import FunctionDescription
-from . import format
+
+import readme_compiler.format as format
 
 BuiltInMethodTypes = (
     WrapperDescriptorType,

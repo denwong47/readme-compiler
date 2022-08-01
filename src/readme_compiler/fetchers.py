@@ -29,7 +29,8 @@ def regex_output(
     source:str,
     pattern:re.Pattern,
 )->Dict[str, str]:
-    if (_match := pattern.match(source)):
+    if (source and \
+        (_match := pattern.match(source))):
         return _match.groupdict()
     else:
         # Return a complete collection of groups, but all None in values

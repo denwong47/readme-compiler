@@ -194,7 +194,10 @@ class FooterTransformer(Transformer):
     )->str:
         if (self.repository is not None and self.template):
             
-            _footer = self.repository.render(self.template, purpose=RenderPurpose.EMBED)
+            try:
+                _footer = self.repository.render(self.template, purpose=RenderPurpose.EMBED)
+            except FileNotFoundError as e:
+                _footer = ""
             
             text += _footer
 

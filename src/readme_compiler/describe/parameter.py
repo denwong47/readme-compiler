@@ -80,3 +80,7 @@ class ParameterDescription(ObjectDescription):
     @JSONDescriptionCachedProperty.with_metadata_override
     def annotation_markdown(self) -> str:
         return self.annotation_description.markdown
+
+    @property
+    def attributes_descriptions(self) -> str:
+        raise exceptions.AttributeNotApplicable(f"Parameter '{self.name}' does not have attributes.")

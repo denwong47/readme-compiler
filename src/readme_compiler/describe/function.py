@@ -9,7 +9,7 @@ from .. import stdout
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
 from .parameter import AnnotationDescription, ParameterDescription
-from . import format
+from .. import format
 from . import exceptions
 
 ALLOWED_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
