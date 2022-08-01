@@ -130,4 +130,4 @@ class GitProperties():
                                                 "add",
                                                 path])
 
-        return not len(_return)
+        return not _return
