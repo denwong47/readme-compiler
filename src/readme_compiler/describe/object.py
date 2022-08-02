@@ -1,3 +1,4 @@
+import abc
 import functools
 import inspect
 import re
@@ -17,7 +18,7 @@ from .json_elements import  JSONDescriptionElement, \
 
 import readme_compiler.describe as describe
 
-print = logger.info
+print = logger.debug
 
 class ObjectDescription():
     """
@@ -53,6 +54,11 @@ class ObjectDescription():
     
     @JSONDescriptionCachedProperty
     def qualname(self) -> str:
+        IGNORE_PREFIXES = (
+            "__main__",
+            "builtins"
+        )
+
         if (_return := getattr(self.obj, "__qualname__", None)):
             if (getattr(self.obj, "__module__", None) and \
                 self.obj.__module__ not in self.obj.__qualname__):
@@ -68,6 +74,14 @@ class ObjectDescription():
             _return = f"{get_origin(self.obj).__name__.title()}[{', '.join(map(str, get_args(self.obj)))}]"
         else:
             _return = None
+
+        if (
+            isinstance(_return, str) and \
+            (_split_return := _return.split(".", 1))[0] in IGNORE_PREFIXES and \
+            len(_split_return) > 1
+        ):
+            # Remove __main__. and builtins. from qualname - those are not necessary.
+            _return = _split_return[1]
 
         return _return
 
@@ -93,7 +107,15 @@ class ObjectDescription():
         """
         Return `True` if the object is markes as abstract by `abc`.
         """
-        return inspect.isabstract(self.obj)
+        return \
+            inspect.isabstract(self.obj) or \
+            isinstance(self.obj, (
+                abc.abstractclassmethod,
+                abc.abstractproperty,
+                abc.abstractstaticmethod,
+                abc.ABCMeta,
+            )) or \
+            getattr(self.obj, "__isabstractmethod__", False) # check if @abc.abstractmethod has done something to the function.
 
     @property
     def json(self) -> Dict[str, str]:      
@@ -106,6 +128,14 @@ class ObjectDescription():
     @property
     def title(self) -> str:
         return f"{stdout.cyan(type(self).__name__)}{stdout.blue(' of ')}{stdout.cyan(self.obj)}{stdout.blue(' from module ')}{stdout.cyan(ObjectDescription(self.module).qualname)}"
+
+    @JSONDescriptionProperty
+    def type(self) -> Type:
+        return type(self.obj)
+
+    @JSONDescriptionProperty
+    def type_description(self) -> Type:
+        return describe.cls.ClassDescription(self.type)
 
     def explain(self, *, indent:int=0) -> None:
         print (" "*indent + self.title)
@@ -166,7 +196,7 @@ class ObjectDescription():
         *,
         dunder:bool=True,
         sunder:bool=True,
-        classes:Tuple[type]=None,
+        classes:Tuple[Type]=None,
         modules:Tuple[ModuleType]=None,
     ) -> Iterable[Any]:
         """
@@ -294,20 +324,38 @@ class ObjectDescription():
             )): return False
 
             # REMOVE_TYPES
-            if (isinstance(
-                getattr(self.obj, name, inspect._empty),
-                REMOVE_TYPES
-            )): return False
+            if (
+                # Make sure it has the attribute - otherwise we might get all the type_hints out
+                hasattr(self.obj, name) and \
+                isinstance(
+                    getattr(self.obj, name, inspect._empty),
+                    REMOVE_TYPES
+                )
+            ): return False
+
+            # Belongs to module if self.obj is a module
+            if (
+                # Make sure it has the attribute - otherwise we might get all the type_hints out
+                hasattr(self.obj, name) and \
+                isinstance(self.obj, ModuleType)
+            ):
+                if (
+                    inspect.getmodule(
+                        getattr(self.obj, name)
+                    ) is not \
+                    self.obj
+                ):
+                    return False
 
             return True
 
         _attrs = set(
-            dir(self.obj) + list(get_type_hints(self).keys())
+            dir(self.obj) + list(get_type_hints(self.obj).keys())
         )
 
         _metadata = self.metadata if (self.metadata) else {}
 
-        return map(
+        return list(map(
             lambda attr: describe.attribute.AttributeDescription.getattr(
                 parent      =   self.obj,
                 name        =   attr,
@@ -320,4 +368,4 @@ class ObjectDescription():
                 _valid_attributes,
                 _attrs,
             )
-        )
+        ))

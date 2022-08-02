@@ -21,6 +21,70 @@ def isbound(func:Callable) -> Union[Any, None]:
     """
     return getattr(func, "__self__", None)
 
+def isinstancemethod(method:Callable) -> bool:
+    """
+    This is a bit of a brute force approach to figure out if something is an instance method:
+    i.e. MyClass.method instead of MyClass().method - the latter of which is called a `bound` method.
+
+    This look for the module of the method, and see if `module.method` is identical to method;
+    if it's not, and the method is not `bound`, then we know that a class is sitting in between.
+
+    NOTE There is an unsolvable bug in this method:
+    ```python
+    def my_method(self):
+        pass
+
+    class MyClass():
+        my_method = my_method
+    ```
+    In the above structure, `isinstancemethod(MyClass.my_method)` will return `False` while its in fact a valid instance method.
+    """
+    return not any(
+        map(
+            lambda check: check(method),
+            (
+                isbound,
+                isfunction,
+            )
+        )
+    )
+    # We still don't know what class its attached to, unfortunately.
+    
+    
+def isfunction(method:Callable) -> bool:
+    """
+    This look for the module of the method, and see if `module.method` is identical to method.
+    """
+    _module = inspect.getmodule(method)
+
+    if (isinstance(_module, ModuleType)):
+        return getattr(_module, method.__name__, None) is method
+    else:
+        return False
+
+def isclassmethod(method:Callable) -> bool:
+    """
+    Check if a method is:
+    - bound to a type, i.e. `__self__` is a type,
+    - looking up the `__mro__` of the method, look for each of the ancestry classes to see if the descriptor that matches the method's name is in fact a `classmethod`.
+        - this tells apart descriptors that happen to have the same name.
+
+    See https://stackoverflow.com/questions/19227724/check-if-a-function-uses-classmethod .
+    """
+
+    bound_to = getattr(method, '__self__', None)
+    if not isinstance(bound_to, type):
+        # must be bound to a class
+        return False
+    name = method.__name__
+    for cls in bound_to.__mro__:
+        descriptor = vars(cls).get(name)
+        if descriptor is not None:
+            return isinstance(descriptor, classmethod)
+
+    return False
+
+
 def parameters(
     obj:Callable,
     *,
@@ -130,8 +194,11 @@ def signature_source_code(
     else:
         # subsitute name with full qualified name
         if (
-            len(_split_qualname := obj.__qualname__.split(".")) > 1
+            isinstancemethod(obj) or \
+            isbound(obj)
         ):
+            _split_qualname = obj.__qualname__.split(".")
+
             _split_qualname[-2] += "(...)"
 
             __qualname__ = ".".join(_split_qualname)
@@ -231,16 +298,47 @@ class FunctionDescription(ObjectDescription):
         return signature_source_code(
             obj=self.obj,
         )
+
+    @JSONDescriptionCachedProperty
+    def type(self) -> Type:
+        if (isclassmethod(self.obj)):
+            return classmethod
+        else:
+            return super().type
+
+    @JSONDescriptionCachedProperty.with_metadata_override
+    def kind_description(self) -> str:
+        _describers = []
+        _kind = "Method"
+
+        if (self.isabstract):
+            _describers.append("Abstract")
+
+        if (isclassmethod(self.obj)):
+            _describers.append("Class")
+        elif (self.isbound):    # This doesn't really work - this is only `True` if the method passed to `describe` was bound; but if its just a method in a class, Python can't tell if its related to a class on its own.
+            _describers.append("Bound")
+        elif (isinstancemethod(self.obj)):
+            _describers.append("Bound")
+            # _describers.append("Instance")
+        elif (isfunction(self.obj)):
+            _kind = "Function"
+
+        _describers.append(_kind)
+
+        return " ".join(_describers)
+
+        
     
     @JSONDescriptionCachedProperty
-    def return_annotation(self) -> Union[typing._GenericAlias, type]:
+    def return_annotation(self) -> Union[typing._GenericAlias, Type]:
         """
         Return the annotation object for the return value.
         """
         return self.signature().return_annotation
 
     @JSONDescriptionCachedProperty
-    def return_descriptino(self) -> "AnnotationDescription":
+    def return_description(self) -> "AnnotationDescription":
         """
         Return the `AnnotationDescription` object for the return value's annotation.
         """

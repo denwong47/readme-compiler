@@ -1,3 +1,7 @@
+"""
+Markdown and Python source code formatting.
+"""
+
 import contextlib
 import inspect
 import re
@@ -131,3 +135,36 @@ def code(
     if (format): source_code = format_source_code(source_code=source_code, **kwargs)
 
     return f"```python\n{source_code}\n```"
+
+def split_title(
+    markdown:str,
+)->Dict[str, str]:
+    """
+    Attempt to Parse the markdown into title and text.
+    """
+    TITLE_PATTERN = re.compile(r"^\s*(?P<title_wrapper>(?:#{1,5})|(?:[*_]{1,2}))\s*(?P<title>.+?)\s*(?:(?P=title_wrapper))?$", re.MULTILINE )
+    
+    if (not isinstance(markdown, str)):
+        _title = None
+        _body = markdown
+        _level = None
+    elif (markdown.strip()):
+        # Ensure there is something in the string
+        _lines = markdown.split("\n")
+
+        for _id, _line in enumerate(_lines):
+            if (_match := TITLE_PATTERN.match(_line)):
+                _title = _match.group("title")
+                _body = "\n".join(_lines[_id+1:])
+                _level = _match.group("title_wrapper")
+                break
+    else:
+        _title = None
+        _body = ""
+        _level = None
+
+    return {
+        "title":_title,
+        "body":_body,
+        "level":_level,
+    }

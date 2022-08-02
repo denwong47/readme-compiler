@@ -13,7 +13,7 @@ from .classes import MarkdownTemplateMode
 from . import settings
 from .log import logger
 
-# print = logger.debug
+print = logger.debug
 
 def is_markdown(filename:str)->bool:
     if (isinstance(settings.FILE_EXTENSION_MARKDOWN, str)): settings.FILE_EXTENSION_MARKDOWN = (settings.FILE_EXTENSION_MARKDOWN, )

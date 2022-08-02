@@ -104,6 +104,21 @@ class ClassDescription(ObjectDescription):
                 exit = None,
             )
 
+    @JSONDescriptionProperty.with_metadata_override
+    def context_code(self) -> str:
+        """
+        By default there is no context_code - the only thing that can populate this is the metadata.
+        """
+        return None
+
+    @JSONDescriptionProperty.with_metadata_override
+    def context_doc(self) -> str:
+        """
+        By default there is no context_doc - the only thing that can populate this is the metadata.
+        """
+        return None
+
+
     @JSONDescriptionCachedProperty
     def call(self) -> Callable[[Any, Optional[Any]], Any]:
         return self.obj.__call__
@@ -111,6 +126,21 @@ class ClassDescription(ObjectDescription):
     @JSONDescriptionCachedProperty.with_metadata_override
     def call_description(self) -> FunctionDescription:
         return FunctionDescription(self.call)
+
+    @JSONDescriptionCachedProperty.with_metadata_override
+    def kind_description(self) -> str:
+        _describers = []
+
+        if (self.isabstract):
+            _describers.append("Abstract Base")
+        
+        if (issubclass(self.obj, type)):
+            _describers.append( "Metaclass")
+        else:
+            _describers.append( "Class")
+
+        return " ".join(_describers)
+
 
     @JSONDescriptionCachedProperty.with_metadata_override
     def methods_descriptions(self) -> List[FunctionDescription]:

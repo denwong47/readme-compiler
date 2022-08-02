@@ -70,6 +70,30 @@ class AttributeDescription(ObjectDescription):
 
         # Do not `super().__init__()` - `.obj` is read-only here!
 
+    @JSONDescriptionCachedProperty
+    def qualname(self):
+        """
+        Full qualified name, including all modules and classes of parent.
+        """
+        return ".".join(
+            (
+                ObjectDescription(self.parent).qualname,
+                self.name,
+            )
+        )
+
+    @JSONDescriptionCachedProperty
+    def signature(self):
+        """
+        Signature - only containing the name of the parent and the attribute.
+        """
+        return ".".join(
+            (
+                self.parent.__name__,
+                self.name,
+            )
+        )
+
     # Make sure AttributeDescription does not have attributes_description... this is especially true for PropertyDescriptions, as we can't really describe fget, fset and fdel.
     @property
     def attributes_descriptions(self):
@@ -96,16 +120,20 @@ class AttributeDescription(ObjectDescription):
         - `PropertyDescription` instance if attribute is a property, and
         - `AttributeDescription` instance if otherwise.
         """
-        if (not hasattr(parent, name)):
+        if (
+            not hasattr(parent, name) and \
+            not name in get_type_hints(parent)
+        ):
             raise exceptions.AttributeNotFound(
                 f"Attribute '{name}' not found on parent object {repr(parent)} of type `{type(parent).__name__}`."
             )
         else:
             # This is just to find out if its a `property` - and you can't get that from instances.
-            # So if parent is not a `class`, we have to look at the class.
+            # So if parent is not a `class`, we have to look at the class. 
             _constructor = getattr(
                 parent if isinstance(parent, type) else type(parent),
-                name
+                name,
+                None
             )
 
             if (isinstance(_constructor, property)):
@@ -146,7 +174,7 @@ class AttributeDescription(ObjectDescription):
         _has_attr       = getattr(
                             _cls,
                             self.name,
-                            
+                            exceptions.AttributeNotFound()
                           )
 
         if (not isinstance(_has_attr, exceptions.AttributeNotFound)):
@@ -169,6 +197,40 @@ class AttributeDescription(ObjectDescription):
             self.default,
             exceptions.AttributeTypeHintOnly,
         )
+
+    @JSONDescriptionProperty
+    def parent_kind(self) -> str:
+        """
+        Return a list of describers about the `parent`, to be `.join()` together to make `kind_description`.
+        """
+        _describers = []
+
+        if (isinstance(self.parent, ModuleType)):
+            # Module attribute
+            _describers.append("Module")
+        elif (isinstance(self.parent, type) and \
+              issubclass(self.parent, type)
+            ):
+            # Class Property - property of a class, not an instance
+            _describers.append("Class")
+        else:
+            # Anything else:
+            # Say nothing
+            pass
+
+        return _describers
+
+    @JSONDescriptionProperty
+    def self_kind(self) -> str:
+        return ["Attribute", ]
+
+    @JSONDescriptionProperty
+    def kind_description(self) -> str:
+        """
+        Description for the kind of attribute.
+        """
+
+        return " ".join(self.parent_kind + self.self_kind)
     
     @JSONDescriptionProperty
     def source(self)->str:
@@ -181,6 +243,13 @@ class AttributeDescription(ObjectDescription):
     @JSONDescriptionCachedProperty.with_metadata_override
     def annotation_markdown(self) -> str:
         return self.annotation_description.markdown
+
+    @JSONDescriptionProperty.with_metadata_override
+    def return_doc(self) -> str:
+        """
+        By default there is no return_doc - the only thing that can populate this is the metadata.
+        """
+        return None
 
 class PropertyDescription(AttributeDescription):
     """
@@ -233,6 +302,22 @@ class PropertyDescription(AttributeDescription):
         Return the `deleter` method of the property.
         """
         return self.obj.fdel
+
+    @JSONDescriptionProperty
+    def self_kind(self) -> str:
+        _describers = []
+
+        if (self.isabstract):
+            _describers.insert(0, "Abstract")
+
+        if (not callable(self.fset)):
+            _describers.insert(0, "Read-only") # Read-only goes first
+
+        elif (not callable(self.fget)):
+            _describers.insert(0, "Write-only") # What kind of property is this????
+
+        _describers.append("Property")
+        return _describers
 
     @JSONDescriptionProperty
     def doc(self) -> Union[str, None]:

@@ -44,6 +44,7 @@ class RepositoryDirectory():
         rendered_folder:str             = settings.README_RENDERED_DIRECTORY,
         source_index:str                = settings.README_SOURCE_INDEX,
         source_folder:str               = settings.README_SOURCE_DIRECTORY,
+        template_folder:str             = settings.TEMPLATE_LOCATION,
     ) -> None:
         """
         Initialise a `RepositoryDirectory` at the given location.
@@ -65,7 +66,8 @@ class RepositoryDirectory():
                 folder = SimpleNamespace(
                     source      = source_folder,
                     rendered    = rendered_folder,
-                )
+                ),
+                template = template_folder,
             )
         )
 
@@ -90,6 +92,7 @@ class RepositoryDirectory():
                     ('rendered_folder', self.settings.paths.folder.rendered),\
                     ('source_index', self.settings.paths.index.source),\
                     ('source_folder', self.settings.paths.folder.source),\
+                    ('template_folder', self.settings.paths.template),\
                 )]) + \
             ")"
 
@@ -194,6 +197,7 @@ class RepositoryDirectory():
         
         _blacklist = [
             self.repopath.abspath(settings.ENV_PATH),
+            self.repopath.abspath(self.settings.paths.template),
         ]
 
         with WorkingDirectory(path=path) as cwd:
