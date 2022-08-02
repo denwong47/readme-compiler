@@ -142,7 +142,8 @@ def split_title(
     """
     Attempt to Parse the markdown into title and text.
     """
-    TITLE_PATTERN = re.compile(r"^\s*(?P<title_wrapper>(?:#{1,5})|(?:[*_]{1,2}))\s*(?P<title>.+?)\s*(?:(?P=title_wrapper))?$", re.MULTILINE )
+    TITLE_HASH_PATTERN = re.compile(r"^\s*(?P<title_wrapper>#{1,5})\s*(?P<title>.+?)\s*(?:(?P=title_wrapper))?$", re.MULTILINE )
+    TITLE_BOLD_PATTERN = re.compile(r"^\s*(?P<title_wrapper>[*_]{1,2})\s*(?P<title>.+?)\s*(?:(?P=title_wrapper))$", re.MULTILINE )
     
     if (not isinstance(markdown, str)):
         _title = None
@@ -153,11 +154,33 @@ def split_title(
         _lines = markdown.split("\n")
 
         for _id, _line in enumerate(_lines):
-            if (_match := TITLE_PATTERN.match(_line)):
+            if (
+                (_match := TITLE_HASH_PATTERN.match(_line)) or \
+                (_match := TITLE_BOLD_PATTERN.match(_line))
+            ):
                 _title = _match.group("title")
-                _body = "\n".join(_lines[_id+1:])
                 _level = _match.group("title_wrapper")
+
+                _body_lines = _lines[_id+1:]
                 break
+            elif (not _line.strip()):
+                # Its an empty line - lets move on
+                pass
+            else:
+                # Its not a title, its not empty, then we get out of here
+                _title = None
+                _level = None
+
+                _body_lines = _lines
+                break
+
+        while (
+            _body_lines and \
+            not _body_lines[0].strip()
+        ):
+            _body_lines.pop(0)
+        
+        _body = "\n".join(_body_lines)
     else:
         _title = None
         _body = ""

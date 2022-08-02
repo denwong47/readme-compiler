@@ -94,6 +94,24 @@ class AttributeDescription(ObjectDescription):
             )
         )
 
+    @property
+    def modules_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def functions_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def classes_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
     # Make sure AttributeDescription does not have attributes_description... this is especially true for PropertyDescriptions, as we can't really describe fget, fset and fdel.
     @property
     def attributes_descriptions(self):

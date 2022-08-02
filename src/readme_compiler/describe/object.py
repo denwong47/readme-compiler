@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, U
 import typing
 
 from .. import stdout
+from .. import format
 
 from ..log import logger
 
@@ -87,12 +88,22 @@ class ObjectDescription():
 
     @JSONDescriptionCachedProperty.with_metadata_override
     def doc(self) -> Union[str, None]:
-        _doc = inspect.getdoc(self.obj)
+        _doc = self.parsed_doc.get("body", None)
 
         if (_doc):
             _doc = inspect.cleandoc(_doc)
 
         return _doc
+
+    @JSONDescriptionCachedProperty.with_metadata_override
+    def title(self) -> Union[str, None]:
+        return self.parsed_doc.get("title", None)
+
+    @JSONDescriptionCachedProperty
+    def parsed_doc(self) -> Dict[str, Union[str, None]]:
+        return format.split_title(
+            inspect.getdoc(self.obj)
+        )
 
     @JSONDescriptionCachedProperty.with_metadata_override
     def comments(self) -> Union[str, None]:
@@ -126,7 +137,7 @@ class ObjectDescription():
         }
 
     @property
-    def title(self) -> str:
+    def caption(self) -> str:
         return f"{stdout.cyan(type(self).__name__)}{stdout.blue(' of ')}{stdout.cyan(self.obj)}{stdout.blue(' from module ')}{stdout.cyan(ObjectDescription(self.module).qualname)}"
 
     @JSONDescriptionProperty
@@ -138,7 +149,9 @@ class ObjectDescription():
         return describe.cls.ClassDescription(self.type)
 
     def explain(self, *, indent:int=0) -> None:
-        print (" "*indent + self.title)
+        print = logger.info
+
+        print (" "*indent + self.caption)
         print ("")
         for _key, _value in zip(self.json, self.json.values()):
             print (" "*indent + "- " +stdout.blue(_key) + ":")
@@ -267,9 +280,21 @@ class ObjectDescription():
         )
 
     @JSONDescriptionCachedProperty.with_metadata_override
+    def modules_descriptions(self):
+        """
+        Return an Iterator of descriptions of all children modules of object
+        """
+        return list(
+            map(
+                describe.module.ModuleDescription,
+                self.classes
+            )
+        )
+
+    @JSONDescriptionCachedProperty
     def classes(self):
         """
-        Return an Iterator of all children modules of object
+        Return an Iterator of all children classes of object
         """
         return self.children(
             dunder=False,
@@ -277,8 +302,20 @@ class ObjectDescription():
             classes=(type, ),
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
         )
-
+    
     @JSONDescriptionCachedProperty.with_metadata_override
+    def classes_descriptions(self):
+        """
+        Return an Iterator of descriptions of all children classes of object
+        """
+        return list(
+            map(
+                describe.cls.ClassDescription,
+                self.classes
+            )
+        )
+
+    @JSONDescriptionCachedProperty
     def functions(self):
         """
         Return an Iterator of all children modules of object
@@ -288,6 +325,18 @@ class ObjectDescription():
             sunder=False,
             classes=(FunctionType, MethodType, MethodWrapperType, ),
             modules=[self.obj, ] if (isinstance(self.obj, ModuleType)) else None,   # Only search submodules of itself if its a module
+        )
+
+    @JSONDescriptionCachedProperty.with_metadata_override
+    def functions_descriptions(self):
+        """
+        Return an Iterator of descriptions of all children modules of object
+        """
+        return list(
+            map(
+                describe.function.FunctionDescription,
+                self.functions
+            )
         )
      
     # Don't cache this - its a map object. If you cache it, it will returned the last exhausted Generator!

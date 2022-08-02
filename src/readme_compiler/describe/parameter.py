@@ -34,6 +34,10 @@ class ParameterDescription(ObjectDescription):
     def doc(self) -> Union[str, None]:
         return f"{self.kind_description} of type: {self.annotation_markdown}."
 
+    @JSONDescriptionCachedProperty
+    def parsed_doc(self) -> Dict[str, Union[str, None]]:
+        return {}
+
     @property
     def source(self) -> str:
         raise exceptions.AttributeNotApplicable(f"Parameter '{self.name}' does not have a source code.")
@@ -80,6 +84,24 @@ class ParameterDescription(ObjectDescription):
     @JSONDescriptionCachedProperty.with_metadata_override
     def annotation_markdown(self) -> str:
         return self.annotation_description.markdown
+
+    @property
+    def modules_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def functions_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def classes_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
 
     @property
     def attributes_descriptions(self) -> str:

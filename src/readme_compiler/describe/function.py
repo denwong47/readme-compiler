@@ -345,3 +345,29 @@ class FunctionDescription(ObjectDescription):
         return AnnotationDescription(
             self.return_annotation
         )
+
+    @property
+    def modules_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def functions_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    @property
+    def classes_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
+    # Make sure FunctionDescription does not have attributes_description.
+    @property
+    def attributes_descriptions(self):
+        raise exceptions.AttributeNotApplicable(
+            f"{type(self).__name__} type objects cannot have their attributes described."
+        )
+
