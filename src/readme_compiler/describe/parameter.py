@@ -22,6 +22,14 @@ class ParameterDescription(ObjectDescription):
     def __repr__(self) -> str:
         return f"{type(self).__name__}(<{self.kind_description} '{self.name}'>)"
 
+    @property
+    def path(self) -> None:
+        return None
+
+    @property
+    def folder_path(self) -> None:
+        return None
+
     @JSONDescriptionCachedProperty
     def name(self) -> str:
         return self.obj.name
@@ -29,6 +37,10 @@ class ParameterDescription(ObjectDescription):
     @property
     def qualname(self) -> str:
         raise exceptions.AttributeNotApplicable(f"Parameter '{self.name}' does not have a qualified name.")
+
+    @JSONDescriptionCachedProperty
+    def menu_item(self) -> str:
+        return f"`{self.name}` *{self.kind_description}*"
 
     @JSONDescriptionCachedProperty.with_metadata_override
     def doc(self) -> Union[str, None]:

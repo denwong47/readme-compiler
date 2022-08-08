@@ -1,3 +1,5 @@
+import os, sys
+
 import abc
 import functools
 import inspect
@@ -48,7 +50,18 @@ class ObjectDescription():
             self._metadata = value
         else:
             self._metadata = {}
-    
+
+    @JSONDescriptionCachedProperty
+    def path(self) -> str:
+        return inspect.getfile(self.obj)
+
+    @JSONDescriptionCachedProperty
+    def folder_path(self) -> str:
+        if (os.path.isdir(self.path)):
+            return self.path
+        else:
+            return os.path.dirname(self.path)
+
     @JSONDescriptionCachedProperty
     def name(self) -> str:
         return self.obj.__name__
@@ -418,3 +431,15 @@ class ObjectDescription():
                 _attrs,
             )
         ))
+
+    @JSONDescriptionProperty
+    def kind_description(self) -> str:
+        return "Object"
+
+    @JSONDescriptionCachedProperty
+    def menu_item(self) -> str:
+        return f"{self.kind_description} `{self.qualname}`"
+
+    @JSONDescriptionCachedProperty
+    def menu_anchor(self) -> str:
+        return format.link_anchor(self.menu_item)

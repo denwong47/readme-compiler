@@ -191,3 +191,34 @@ def split_title(
         "body":_body,
         "level":_level,
     }
+
+def link_anchor(
+    title:str,
+) -> str:
+    """
+    ### Link Anchor version of the provided title in Markdown
+
+    With a title like:
+    ```
+    # 0    !"# $%&\ '()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~-
+    ```
+
+    Github will automatically create an anchor link so that you can link to it elsewhere in the same markdown:
+    ```
+    [My Link to the Title](#0----0123456789abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz)
+    ```
+
+    The rules for this string conversion is:
+    1. Convert any consecutive number of spaces into a single `-` each.
+    2. Remove any characters not within `[A-Za-z0-9\-]`.
+    3. Remove any leading or trailing `-`s.
+    4. Convert to lower case.
+    """
+
+    title = re.compile(r"\s+").sub("-", str(title))
+    title = re.compile(r"[^\-A-Z0-9]", re.IGNORECASE).sub("", title)
+    title = title.strip("-")
+    title = title.lower()
+    title = "#"+title
+
+    return title

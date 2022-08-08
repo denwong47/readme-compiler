@@ -14,7 +14,20 @@ while (True):
         _command = input(">>> ")
 
         _result = None
-        exec("_result = "+_command, globals(), locals())
+        
+        if (not any(
+            map(
+                lambda _word:_command.startswith(_word),
+                (
+                    "from",
+                    "import",
+                    "assert",
+                )
+            )
+        )):
+            _command = "_result = "+_command
+
+        exec(_command, globals(), locals())
 
         if (_result is not None): print (stdout.green(_result))
 

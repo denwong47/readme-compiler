@@ -59,5 +59,6 @@ register_string_filter(format.remarks)
 register_string_filter(format.unremark)
 register_string_filter(format.code)
 register_string_filter(format.remove_remarks)
+register_string_filter(format.link_anchor)
 
 register_builtin_filter(repr)

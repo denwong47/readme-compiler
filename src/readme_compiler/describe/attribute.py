@@ -269,6 +269,15 @@ class AttributeDescription(ObjectDescription):
         """
         return None
 
+    @property
+    def path(self) -> None:
+        return None
+
+    @property
+    def folder_path(self) -> None:
+        return None
+
+
 class PropertyDescription(AttributeDescription):
     """
     """
