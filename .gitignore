@@ -75,3 +75,4 @@ __pycache__/
 env/
 /scripts/_*.py
 test_repo/
+# .git/

@@ -287,7 +287,7 @@ class ObjectDescription():
         return list(
             map(
                 describe.module.ModuleDescription,
-                self.classes
+                self.modules
             )
         )
 
