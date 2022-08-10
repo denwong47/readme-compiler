@@ -1,9 +1,5 @@
 # readme-compiler
 
-> ```python
-> def something(myname:Union[str,int], mybool:bool, *args, **kwargs) -> None: \n    """\nMy Doc\n"""\n    return myname
-> 
-> ```
 
 ```python
 "readme_compiler.classes"
@@ -17,4 +13,4 @@
 -----------
 [readme-compiler](https://www.github.com/denwong47/readme-compiler) | main | denwong47
 
-<sub>Formatted by [readme-compiler](https://www.github.com/denwong47/readme-compiler) at <strong>2022-08-10 06:01 PM Europe/London</strong></sub>
+<sub>Formatted by [readme-compiler](https://www.github.com/denwong47/readme-compiler) at <strong>2022-08-10 06:05 PM Europe/London</strong></sub>
