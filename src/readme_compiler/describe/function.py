@@ -12,7 +12,7 @@ from .parameter import AnnotationDescription, ParameterDescription
 from .. import format
 from . import exceptions
 
-ALLOWED_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
+FUNCTION_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
 
 def isbound(func:Callable) -> Union[Any, None]:
     """
@@ -240,7 +240,7 @@ class FunctionDescription(ObjectDescription):
     """
     Describe a function/method in `dict` form.
     """
-    obj:Union.__getitem__(ALLOWED_TYPES)
+    obj:Union.__getitem__(FUNCTION_TYPES)
 
     def __new__(
         cls: type["FunctionDescription"],
@@ -251,9 +251,9 @@ class FunctionDescription(ObjectDescription):
         exceptions.ObjectNotDescribable,
         "FunctionDescription",
     ]:
-        if (not isinstance(obj, ALLOWED_TYPES)):
+        if (not isinstance(obj, FUNCTION_TYPES)):
             return exceptions.ObjectNotDescribable(
-                f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", ALLOWED_TYPES))
+                f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", FUNCTION_TYPES))
             )
 
         return super().__new__(cls)

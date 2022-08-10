@@ -28,3 +28,24 @@ class FalseEvaluatingException(Exception):
     def __bool__(self)->bool:
         return False
     __nonzero__ = __bool__
+
+class InvalidFunctionArgument(ValueError, FalseEvaluatingException):
+    """
+    Exception for when an invalid function argument was passed.
+    """
+
+class SourceNotFound(ImportError, FalseEvaluatingException):
+    """
+    Exception that indicates an ImportError/ModuleNotFoundError had occured during dynamic import.
+    """
+
+class SourceHasNoSuchAttribute(AttributeError, FalseEvaluatingException):
+    """
+    Exception that indicates import of source succeeded, but requested object is not found.
+    """
+
+class ObjectNotFoundInContext(ValueError, FalseEvaluatingException):
+    """
+    Object requested by string, but is not found in `globals` or `locals`.
+    """
+

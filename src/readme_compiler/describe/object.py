@@ -9,11 +9,13 @@ from types import ModuleType, MethodType, MethodWrapperType, FunctionType, Trace
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args, get_type_hints
 import typing
 
+from .. import settings
 from .. import stdout
 from .. import format
 
 from ..log import logger
 
+from . import exceptions
 from .json_elements import  JSONDescriptionElement, \
                             JSONDescriptionCachedProperty, \
                             JSONDescriptionLRUCache, \
@@ -40,6 +42,19 @@ class ObjectDescription():
         self.obj = obj
         self.metadata = metadata
 
+    @JSONDescriptionProperty
+    def descriptor(self) -> str:
+        """
+        A lower case string for the current class of `Description`.
+
+        This will be used:
+        - as prefix of the metadata JSONs (cls.forestreet_job_monitoring.Job.metadata.json)
+        - as the name of the principle variable inside the matching template (template.cls.md)
+
+        This gives a baseline property that works for most of the `Description` classes, except `ClassDescription` that has to use `cls` to avoid using keyword `class`.
+        """
+        return type(self).__name__.lower().replace("description", "")
+
     @property
     def metadata(self) -> dict:
         return self._metadata
@@ -50,6 +65,24 @@ class ObjectDescription():
             self._metadata = value
         else:
             self._metadata = {}
+
+    @JSONDescriptionProperty
+    def metadata_path(self) -> str:
+        """
+        Return the DEFAULT path of the metadata for this object.
+        If `metadata` is supplied at `__init__` stage, then this property is used for saving metadata only.
+        """
+        try:
+            return os.path.abspath(os.path.join(
+                self.folder_path,
+                f"./{settings.README_SOURCE_DIRECTORY}/"+\
+                     settings.README_METADATA_DIRECTORY.format(
+                        descriptor  = self.descriptor,
+                        qualname    = self.qualname,
+                    )
+            ))
+        except exceptions.AttributeNotApplicable as e:
+            return None
 
     @JSONDescriptionCachedProperty
     def path(self) -> str:
@@ -111,6 +144,18 @@ class ObjectDescription():
     @JSONDescriptionCachedProperty.with_metadata_override
     def title(self) -> Union[str, None]:
         return self.parsed_doc.get("title", None)
+
+    @JSONDescriptionProperty
+    def kind_description(self) -> str:
+        return "Object"
+
+    @JSONDescriptionCachedProperty
+    def menu_item(self) -> str:
+        return f"{self.kind_description} `{self.qualname}`"
+
+    @JSONDescriptionCachedProperty
+    def menu_anchor(self) -> str:
+        return format.link_anchor(self.menu_item)
 
     @JSONDescriptionCachedProperty
     def parsed_doc(self) -> Dict[str, Union[str, None]]:
@@ -432,14 +477,4 @@ class ObjectDescription():
             )
         ))
 
-    @JSONDescriptionProperty
-    def kind_description(self) -> str:
-        return "Object"
-
-    @JSONDescriptionCachedProperty
-    def menu_item(self) -> str:
-        return f"{self.kind_description} `{self.qualname}`"
-
-    @JSONDescriptionCachedProperty
-    def menu_anchor(self) -> str:
-        return format.link_anchor(self.menu_item)
+    

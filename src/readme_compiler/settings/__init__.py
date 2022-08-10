@@ -9,6 +9,9 @@ README_SOURCE_INDEX                     =   ".README.source.md"
 README_RENDERED_DIRECTORY               =   ".readme"
 README_SOURCE_DIRECTORY                 =   ".readme.source"
 
+README_METADATA_INDEX                   =   ".README.metadata.json"
+README_METADATA_DIRECTORY               =   "{descriptor}.{qualname}.metadata.json"    # this does not include path
+
 README_BRANCH_DESCRIPTION_TEMPLATE      =   "branch.{branch}.md"
 
 ENV_PATH                                =   "/env"

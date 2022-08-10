@@ -41,6 +41,7 @@ class AttributeDescription(ObjectDescription):
     parent      = JSONDescriptionProperty.as_stored_attribute("parent",     annotation=Union[ModuleType, type])
     comments    = JSONDescriptionProperty.as_stored_attribute("comments",   annotation=str)
     doc         = JSONDescriptionProperty.as_stored_attribute("doc",        annotation=str)
+    path        = JSONDescriptionProperty.as_stored_attribute("path",       annotation=str)
     annotation  = JSONDescriptionProperty.as_stored_attribute("annotation", annotation=typing._GenericAlias)
 
     isproperty:bool =    False
@@ -52,6 +53,7 @@ class AttributeDescription(ObjectDescription):
         comments:str                    = "",
         doc:str                         = "",
         annotation:typing._GenericAlias = Any,
+        path:str                        = "",
         *,
         metadata: Dict[str, Any] = None
     ) -> None:
@@ -65,6 +67,7 @@ class AttributeDescription(ObjectDescription):
         self._comments  =   comments
         self._doc       =   doc
         self._annotation=   annotation      # This is not that simple - we have to look at @property as well
+        self._path      =   path
 
         self.metadata   =   metadata
 
@@ -158,13 +161,20 @@ class AttributeDescription(ObjectDescription):
                 # Ensure property get the PropertyDescription class
                 if (not issubclass(cls, PropertyDescription)): cls = PropertyDescription
                 _kwargs = {
-                    "property": _constructor,
+                    "property":     _constructor,
                 }
             else:
                 # ...while non-properties get the AttributeDescription class
                 if (issubclass(cls, PropertyDescription)): cls = AttributeDescription
+
+                try:
+                    _path = inspect.getfile(parent)
+                except TypeError as e:
+                    _path = None
+
                 _kwargs = {
-                    "annotation": get_type_hints(parent).get(name, inspect._empty)
+                    "annotation":   get_type_hints(parent).get(name, inspect._empty),
+                    "path":         _path,
                 }
 
             return cls(
@@ -247,7 +257,6 @@ class AttributeDescription(ObjectDescription):
         """
         Description for the kind of attribute.
         """
-
         return " ".join(self.parent_kind + self.self_kind)
     
     @JSONDescriptionProperty
@@ -267,14 +276,6 @@ class AttributeDescription(ObjectDescription):
         """
         By default there is no return_doc - the only thing that can populate this is the metadata.
         """
-        return None
-
-    @property
-    def path(self) -> None:
-        return None
-
-    @property
-    def folder_path(self) -> None:
         return None
 
 

@@ -26,11 +26,14 @@ BuiltInMethodTypes = (
     MethodWrapperType,
     MethodDescriptorType,
 )
+
+CLASS_TYPES = (type, )
+
 class ClassDescription(ObjectDescription):
     """
     An object representing the various properties of a class.
     """
-    obj:type
+    obj:CLASS_TYPES
 
     def __init__(
         self,
@@ -40,14 +43,27 @@ class ClassDescription(ObjectDescription):
         named_methods_only: bool = None,
     ) -> None:
 
-        assert isinstance(obj, type), f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be a class object."
+        assert isinstance(obj, CLASS_TYPES), f"Cannot describe '{stdout.red(CLASS_TYPES(obj).__name__)}' - has to be a class object."
 
         super().__init__(obj, metadata)
 
         self.named_methods_only = named_methods_only
 
+    @JSONDescriptionProperty
+    def descriptor(self) -> str:
+        """
+        A lower case string for the current class of `Description`.
+
+        This will be used:
+        - as prefix of the metadata JSONs (cls.forestreet_job_monitoring.Job.metadata.json)
+        - as the name of the principle variable inside the matching template (template.cls.md)
+
+        This gives a baseline property that works for most of the `Description` classes, except `ClassDescription` that has to use `cls` to avoid using keyword `class`.
+        """
+        return "cls"
+
     @JSONDescriptionCachedProperty
-    def ancestry(self) -> List[type]:
+    def ancestry(self) -> List[CLASS_TYPES]:
         return self.obj.__mro__
 
     @JSONDescriptionCachedProperty

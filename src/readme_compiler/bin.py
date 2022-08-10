@@ -3,14 +3,16 @@
 """
 
 import os, sys
+import builtins
 from distutils import dir_util, file_util
+import importlib
 import logging
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, Dict, List, Tuple, Union
+from types import ModuleType, FunctionType, SimpleNamespace
+from typing import Any, Dict, List, Tuple, Type, Union
 
 from .classes import MarkdownTemplateMode
-from . import settings
+from . import exceptions, settings
 from .log import logger
 
 print = logger.debug
@@ -296,3 +298,104 @@ def map_unders(
 
     return obj
     
+def get_object(
+    obj:Union[
+        FunctionType,
+        ModuleType,
+        type,
+    ],
+    source:str=None,
+    globals:dict=None,
+    locals:dict=None,
+) -> Any:
+    """
+    ### Get the referenced object by `obj` and `source`
+
+    If:
+    - `obj` is `None` and
+        - `source` is `None`, then raise an Exception.
+        - `source` is `str`:
+            - It will try dynamically importing `source` using `importlib`.
+                - If successful, return the imported object.
+                - If `ImportError` or `ModuleNotFoundError`, then raise the exception.
+    - `obj` is a `FunctionType`, `ModuleType` or `ClassType`, then return `obj`.
+    - `obj` is a `str`,
+        - `source` is `None`, then
+            - Try finding `obj` in `locals()` and `globals()`,
+                - If found, return that object.
+                - If not found, raise an Exception.
+        - `source` is `str`, then
+            - It will try getting attribute `obj` from `import source` (this is done by `importlib`, not actually importing `source`.)
+                - If successful, return the attribute.
+                - Otherwise, raise a specific error depending on whether `ImportError`, `ModuleNotFoundError` or `AttributeError` had occured.
+            - Relative imports, i.e. `..settings`, is not supported.
+    """
+    def _get_source(source:str)->ModuleType:
+        try:
+            _module = importlib.import_module(source)
+
+            return _module
+        except (
+            ImportError,
+            ModuleNotFoundError,
+        ) as e:
+            raise exceptions.SourceNotFound(
+                f"{source} cannot be imported because of {type(e).__name__}: {str(e)}"
+            )
+
+    # Look at obj and source to see what they are
+    if (obj is None):
+        if (isinstance(source, str)):
+            source = _get_source(source)
+
+        if (isinstance(source, ModuleType)):
+            return source
+        else:
+            raise exceptions.InvalidFunctionArgument(
+                f"{repr(source)} not recognised as a `source` type. `str` or `ModuleType` expected."
+            )
+
+    elif (isinstance(
+        obj,
+        (
+            FunctionType,
+            ModuleType,
+            type,
+        )
+    )):
+        # `obj` is already a recognisable object, lets just return it.
+        return obj
+    
+    elif (isinstance(
+        obj,
+        str,
+    )):
+        # `obj` is a str for something... lets figure out what it is
+        if (isinstance(source, (str, ModuleType))):
+            source = _get_source(source)
+
+            if (hasattr(source, obj)):
+                return getattr(source, obj)
+            else:
+                raise exceptions.SourceHasNoSuchAttribute(
+                    f"Requested attribute {repr(obj)} is not found in {repr(source)}."
+                )
+
+        else:
+            if (not locals):    locals  = builtins.locals()
+            if (not globals):   globals = builtins.globals()
+            
+            _obj_in_context =   locals.get(obj, None) or \
+                                globals.get(obj, None)
+            
+            if (_obj_in_context):
+                return _obj_in_context
+            else:
+                raise exceptions.ObjectNotFoundInContext(
+                    f"{repr(obj)} is not found in `globals` or `locals`, and no `source` is provided."
+                )
+
+    else:
+        raise exceptions.InvalidFunctionArgument(
+            f"Parameters not understood for `get_object()`: obj={repr(obj)}, source={repr(source)}"
+        )

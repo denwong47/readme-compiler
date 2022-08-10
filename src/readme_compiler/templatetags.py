@@ -3,6 +3,7 @@ DO NOT RENAME THIS FILE - THIS NAME IS THE DEFAULT GIVEN BY DJANGO
 """
 
 from datetime import datetime
+import importlib
 import pytz
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
 
@@ -12,9 +13,9 @@ from django.template import Context as  DjangoContext, \
 from . import django_setup
 from .django_setup import register  # Required to avoid django.template.library.InvalidTemplateLibrary Exception
 
-import readme_compiler.classes as classes
+import readme_compiler
 
-from . import settings
+from . import bin, classes, settings
 from .settings.enums import RenderPurpose
 
 @django_setup.register.simple_tag(
@@ -73,3 +74,33 @@ def logo(
             _url = _f.read().format(**kwargs)
         
         return django_setup.mark_safe(f"![{alt_text}]({_url})")
+
+
+@django_setup.register.simple_tag(
+    takes_context=True,
+)
+def describe(
+    context:DjangoContext,
+    template:str,
+    *,
+    obj:str,
+    source:str=None,
+    metadata:Dict[str, Any]=None,
+):
+    """
+    ### `describe` an object using a template.
+
+    This template tag can dynamically import modules and their attributes, then describe it.
+    """
+
+    obj = bin.get_object(
+        obj     = obj,
+        source  = source,
+        globals = globals(),
+        locals  = context,
+    )
+
+    context[template] = readme_compiler.describe(
+        obj,
+        metadata=metadata,
+    )

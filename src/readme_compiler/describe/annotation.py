@@ -12,11 +12,13 @@ from . import exceptions
 from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
 from .object import ObjectDescription
 
-_AnnotationAlias = Union[
+ANNOTATION_TYPES = (
     typing._GenericAlias,
     str,
     type,
-]
+)
+
+_AnnotationAlias = Union.__getitem__(ANNOTATION_TYPES)
 
 class PseudoAliasMeta(abc.ABCMeta):
     """
@@ -169,7 +171,7 @@ class AnnotationDescription(ObjectDescription):
             self.wrapper = type(self.obj)
             self.args = self.obj.args   # Not really used
 
-        elif (isinstance(self.obj, typing._GenericAlias)):
+        elif (isinstance(self.obj, (typing._GenericAlias, typing.Callable))):
             # Union/Iterable/Callable[] etc
             self.wrapper = get_origin(self.obj)
 
@@ -179,6 +181,16 @@ class AnnotationDescription(ObjectDescription):
                     get_args(self.obj),
                 )
             )
+
+        elif (self.obj is typing.Type):
+            # Type[]
+            self.wrapper = type   # pass as str            
+            self.args = get_args(self.obj)
+        
+        elif (self.obj is typing.Any):
+            # Type[]
+            self.wrapper = "Any"   # pass as str            
+            self.args = []
 
         elif (isinstance(self.obj, str)):
             # Straight up a string. This should have been a ForwardRef, but lets not question it
@@ -257,7 +269,7 @@ class AnnotationDescription(ObjectDescription):
             )
             
             if (self.wrapper):
-                _return = f"`{self.wrapper.__name__.title()}`[ {_return} ]"
+                _return = f"`{self.wrapper.__name__.title() if not isinstance(self.wrapper, str) else self.wrapper}`[ {_return} ]"
             else:
                 _return = f"[ {_return} ]"
 

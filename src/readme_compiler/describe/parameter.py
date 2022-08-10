@@ -12,12 +12,13 @@ from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCach
 from .object import ObjectDescription
 from .annotation import AnnotationDescription
 
+PARAMETER_TYPES = (inspect.Parameter, )
 
 class ParameterDescription(ObjectDescription):
     """
     Describe a parameter of a `function` or `method`.
     """
-    obj:inspect.Parameter
+    obj:PARAMETER_TYPES
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(<{self.kind_description} '{self.name}'>)"

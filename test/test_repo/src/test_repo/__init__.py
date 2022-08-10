@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, U
 
 from . import submodule_1
 from . import submodule_2
+from . import submodule_3
 
 my_attribute:int
 
