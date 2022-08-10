@@ -74,5 +74,6 @@ __pycache__/
 .README.md.cache
 env/
 /scripts/_*.py
-test_repo/
+test_repo/*
 # .git/
+!test_repo/submodule_3
