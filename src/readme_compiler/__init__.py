@@ -17,4 +17,3 @@ from . import django_setup
 from .django_setup import   register
 from .classes import        RepositoryDirectory, \
                             MarkdownTemplate
-

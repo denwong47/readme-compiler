@@ -1,0 +1,99 @@
+{
+    "attributes_descriptions": {
+        "id": {
+            "annotation_markdown": "``",
+            "return_doc": null,
+            "title": null
+        },
+        "nothing": {
+            "annotation_markdown": "``",
+            "return_doc": null,
+            "title": null
+        }
+    },
+    "call_description": {
+        "comments": null,
+        "doc": "Call self as a function.",
+        "kind_description": "Bound Method",
+        "name": "__call__",
+        "parameters_descriptions": {
+            "args": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Positional-Only Parameter of type: `Any`.",
+                "position_description": "Positional-Only",
+                "title": null
+            },
+            "kwargs": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Collection of Named Parameter of type: `Any`.",
+                "position_description": "Collection of Named",
+                "title": null
+            }
+        },
+        "title": null
+    },
+    "classes_descriptions": {},
+    "comments": null,
+    "context_code": null,
+    "context_descriptions": {
+        "enter": null,
+        "exit": null
+    },
+    "context_doc": null,
+    "doc": "This is a useless class containing one decorator only.",
+    "functions_descriptions": {
+        "my_decorator": {
+            "comments": null,
+            "doc": null,
+            "kind_description": "Bound Method",
+            "name": "my_decorator",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`Any`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Any`.",
+                    "position_description": null,
+                    "title": null
+                },
+                "func": {
+                    "annotation_markdown": "`Callable`[  ]",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Callable`[  ].",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        }
+    },
+    "init_description": {
+        "comments": "# Fake __init__\n",
+        "doc": null,
+        "kind_description": "Bound Method",
+        "name": "__init__",
+        "parameters_descriptions": {
+            "args": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Positional-Only Parameter of type: `Any`.",
+                "position_description": "Positional-Only",
+                "title": null
+            },
+            "kwargs": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Collection of Named Parameter of type: `Any`.",
+                "position_description": "Collection of Named",
+                "title": null
+            }
+        },
+        "title": null
+    },
+    "kind_description": "Class",
+    "methods_descriptions": {},
+    "modules_descriptions": {},
+    "name": "MySubModule3Class",
+    "title": "Useless class MySubModule3Class"
+}

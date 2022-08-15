@@ -1,5 +1,6 @@
 import abc
 import builtins
+import enum
 import inspect
 import re
 from types import SimpleNamespace, ModuleType, MethodType, FunctionType, TracebackType, FrameType, CodeType, GenericAlias 
@@ -148,7 +149,7 @@ class AnnotationDescription(ObjectDescription):
     ):
         # Make sure we still store it - `PseudoAlias` relies on this!
         self.obj = annotation
-        
+
         if (self.obj is None or \
             self.obj is type(None)
         ):
@@ -171,26 +172,29 @@ class AnnotationDescription(ObjectDescription):
             self.wrapper = type(self.obj)
             self.args = self.obj.args   # Not really used
 
-        elif (isinstance(self.obj, (typing._GenericAlias, typing.Callable))):
-            # Union/Iterable/Callable[] etc
-            self.wrapper = get_origin(self.obj)
+        elif (inspect.getmodule(self.obj) is typing):
+            # Checking isinstance(typing.Callable) is quite problematic - so we have to confirm that obj belongs to typing before checking that.
 
-            self.args = list(
-                map(
-                    type(self),
-                    get_args(self.obj),
+            if isinstance(self.obj, (typing._GenericAlias, typing.Callable)):
+                # Union/Iterable/Callable[] etc
+                self.wrapper = get_origin(self.obj)
+
+                self.args = list(
+                    map(
+                        type(self),
+                        get_args(self.obj),
+                    )
                 )
-            )
 
-        elif (self.obj is typing.Type):
-            # Type[]
-            self.wrapper = type   # pass as str            
-            self.args = get_args(self.obj)
-        
-        elif (self.obj is typing.Any):
-            # Type[]
-            self.wrapper = "Any"   # pass as str            
-            self.args = []
+            elif (self.obj is typing.Type):
+                # Type[]
+                self.wrapper = type   # pass as str            
+                self.args = get_args(self.obj)
+            
+            elif (self.obj is typing.Any):
+                # Type[]
+                self.wrapper = "Any"   # pass as str            
+                self.args = []
 
         elif (isinstance(self.obj, str)):
             # Straight up a string. This should have been a ForwardRef, but lets not question it
@@ -207,6 +211,12 @@ class AnnotationDescription(ObjectDescription):
                     self.obj,
                 )
             )
+        
+        elif (isinstance(self.obj, enum.Enum)):
+            # an Enum.
+            self.wrapper = None
+            
+            self.args = [ f"{type(self.obj).__name__}.{self.obj.name}"]
     
         elif (isinstance(self.obj, type)):
             # a Class object.
@@ -218,6 +228,14 @@ class AnnotationDescription(ObjectDescription):
             else:
                 # Otherwise, give it the qualified name
                 self.args = [ ObjectDescription(self.obj).qualname ]
+        
+        else:
+            # Really no clue what this is.
+            # Just ignore and hope for no error.
+            self.wrapper = None
+            self.args = [self.obj, ]
+
+        # print (self.obj, self.wrapper, self.args)
 
     @JSONDescriptionCachedProperty
     def markdown(self) -> str:

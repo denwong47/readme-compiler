@@ -1,0 +1,143 @@
+{
+    "attributes_descriptions": {
+        "my_attribute": {
+            "annotation_markdown": "``",
+            "return_doc": null,
+            "title": null
+        },
+        "my_abstract_property": {
+            "annotation_markdown": "",
+            "return_doc": null,
+            "title": null
+        },
+        "my_property": {
+            "annotation_markdown": "Get: `List`[ `` ] | `Callable`[ [ `MyClass`, `` ], `` ]; Set: `` | ``",
+            "return_doc": null,
+            "title": null
+        }
+    },
+    "call_description": {
+        "comments": null,
+        "doc": "Call self as a function.",
+        "kind_description": "Bound Method",
+        "name": "__call__",
+        "parameters_descriptions": {
+            "args": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Positional-Only Parameter of type: `Any`.",
+                "position_description": "Positional-Only",
+                "title": null
+            },
+            "kwargs": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Collection of Named Parameter of type: `Any`.",
+                "position_description": "Collection of Named",
+                "title": null
+            }
+        },
+        "title": null
+    },
+    "classes_descriptions": {},
+    "comments": "# My COmments\n",
+    "context_code": null,
+    "context_descriptions": {
+        "enter": null,
+        "exit": null
+    },
+    "context_doc": null,
+    "doc": "Its not immensely useful.",
+    "functions_descriptions": {
+        "my_abstract_method": {
+            "comments": null,
+            "doc": "I am useless",
+            "kind_description": "Abstract Bound Method",
+            "name": "my_abstract_method",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`Any`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Any`.",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": "My Abstract Method"
+        },
+        "my_class_method": {
+            "comments": null,
+            "doc": "Call me a class method",
+            "kind_description": "Class Method",
+            "name": "my_class_method",
+            "parameters_descriptions": {
+                "param_1": {
+                    "annotation_markdown": "``",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: ``.",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        },
+        "my_method": {
+            "comments": null,
+            "doc": null,
+            "kind_description": "Bound Method",
+            "name": "my_method",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`MyClass`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `MyClass`.",
+                    "position_description": null,
+                    "title": null
+                },
+                "param_1": {
+                    "annotation_markdown": "``",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: ``.",
+                    "position_description": null,
+                    "title": null
+                },
+                "param_2": {
+                    "annotation_markdown": "`` | `Type`[ `MyClass` ]",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `` | `Type`[ `MyClass` ].",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        }
+    },
+    "init_description": {
+        "comments": "# Fake __init__\n",
+        "doc": null,
+        "kind_description": "Bound Method",
+        "name": "__init__",
+        "parameters_descriptions": {
+            "args": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Positional-Only Parameter of type: `Any`.",
+                "position_description": "Positional-Only",
+                "title": null
+            },
+            "kwargs": {
+                "annotation_markdown": "`Any`",
+                "comments": null,
+                "doc": "Mandatory Collection of Named Parameter of type: `Any`.",
+                "position_description": "Collection of Named",
+                "title": null
+            }
+        },
+        "title": null
+    },
+    "kind_description": "Abstract Base Class",
+    "methods_descriptions": {},
+    "modules_descriptions": {},
+    "name": "MyClass",
+    "title": "Introduction to MyClass"
+}

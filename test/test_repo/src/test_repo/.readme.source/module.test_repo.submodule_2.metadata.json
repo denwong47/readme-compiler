@@ -1,0 +1,33 @@
+{
+    "attributes_descriptions": {
+        "my_attribute": {
+            "annotation_markdown": "``",
+            "return_doc": null,
+            "title": null
+        }
+    },
+    "classes_descriptions": {},
+    "comments": null,
+    "doc": "This is submodule 2.",
+    "functions_descriptions": {
+        "my_func": {
+            "comments": null,
+            "doc": null,
+            "kind_description": "Function",
+            "name": "my_func",
+            "parameters_descriptions": {
+                "my_param": {
+                    "annotation_markdown": "``",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: ``.",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        }
+    },
+    "modules_descriptions": {},
+    "name": "test_repo.submodule_2",
+    "title": "Submodule 2"
+}

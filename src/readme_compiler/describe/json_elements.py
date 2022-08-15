@@ -1,17 +1,25 @@
+import os
 import functools
 import inspect
+import json
 
 import typing
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, Optional
 
+
+import readme_compiler.stdout as stdout
 
 
 import readme_compiler.describe as describe
+import readme_compiler.describe.exceptions as exceptions
+
 
 class JSONDescriptionElement():
     """
     Superclass to contain all elements to be exported in the JSON.
     """
+    metadata_override:bool   = False
+
     @classmethod
     def with_metadata_override(
         cls,
@@ -27,11 +35,10 @@ class JSONDescriptionElement():
             **kwargs,
         )->Any:
             _metadata = getattr(self, "metadata", None)
-            if (_metadata is None): _metadata = {}
+            if (not isinstance(_metadata, dict)): _metadata = {}
 
             _return = func(self, *args, **kwargs)
                 
-            # we use hasattr here so that we allow None and "" overrides from metadata.
             if (func.__name__ in _metadata):
                 _metadata_for_attr = _metadata.get(func.__name__, None)
                 
@@ -68,7 +75,10 @@ class JSONDescriptionElement():
             return _return
 
         # Remember to decorate the _wrapper with itself too! Otherwise no property for you.
-        return cls(_wrapper)
+        _property = cls(_wrapper)
+        _property.metadata_override = True
+
+        return _property
 
 class JSONDescriptionProperty(property, JSONDescriptionElement):
     """
@@ -204,3 +214,148 @@ class JSONDescriptionLRUCache(JSONDescriptionElement):
             self._wrapped = self._wrapped(*args, **kwargs) # This returned the wrapped function without any reference to this `JSONDescriptionLRUCache` instance. This doesn't matter as we check `JSONDescriptionLRUCache` on the class, not instance.
             return self
         
+class DescriptionMetadata(dict):
+    """
+    ### Subclass of `dict` to store metadata for `Description` classes
+    
+    It knows of its own parent, so it knows where the metadata path etc is.
+    The main purpose is to export and import metadata.
+    """
+    __parent__:"describe.object.ObjectDescription"
+
+    def __init__(
+        self,
+        *args,
+        parent:"describe.object.ObjectDescription" = None,
+        **kwargs,
+    ) -> None:
+        """
+        ### Initialise a `DescriptionMetadata` instance
+        ...linking it to a `parent` object of `ObjectDescription` type.
+        """
+        self.parent = parent
+        
+        super().__init__(*args, **kwargs)
+
+        self.load()
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({super().__repr__()}, parent={type(self.parent).__name__}({self.parent.qualname}))"
+
+    @property
+    def parent(self) -> "describe.object.ObjectDescription":
+        return self.__parent__
+    
+    @parent.setter
+    def parent(self, value:"describe.object.ObjectDescription") -> None:
+        if (isinstance(value, describe.object.ObjectDescription)):
+            self.__parent__ = value
+        else:
+            raise exceptions.ObjectDescriptionRequired(
+                f"'ObjectDescription' instance expected for parent of 'DescriptionMetadata'; {repr(value)} found."
+            )
+        
+
+    def from_parent(self) -> "DescriptionMetadata":
+        """
+        Update all attributes of the metadata from the parent object.
+        """
+        self.update(
+            self.parent.as_export_dict
+        )
+        return self
+
+
+    # ## This is not actually necessary - `with_metadata_override` already 
+    # def merge_parent(self) -> "DescriptionMetadata":
+    #     """
+    #     Update this metadata with the parent's metadata, while not overriding any existing data.
+    #     """
+    #     _data = self.parent.as_export_dict
+
+    #     _data.update(self)
+
+    #     self.update(_data)
+
+    #     return self
+
+    def copy(self) -> "DescriptionMetadata":
+        return type(self)(super().copy(), parent=self.parent)
+
+    def export(
+        self,
+        store_external:Iterable[str] = ["classes_descriptions", "modules_descriptions"],
+        *,
+        merge:bool = True,
+    ) -> None:
+        """
+        Export the current metadata to a file.
+        """
+        _return = self.copy()
+
+        if (merge): _return.from_parent()
+
+        def _export_items(obj:Any):
+            if (isinstance(obj, describe.object.ObjectDescription)):
+                if (merge): obj.metadata.from_parent()
+                
+                obj.metadata.export(store_external=store_external, merge=merge)
+            elif (isinstance(obj, Iterable) and not isinstance(obj, str)):
+                # dict check is correct here. as_export_dict converts all the lists into dicts.
+                for _value in obj:
+                    _export_items(_value)
+            else:
+                pass
+
+        if (store_external):
+            # Deal with all the attributes that are to be stored externally.
+            # Typically specified for the "*_descriptions" properties, this allows modules and classes to have their own sidecar json metadata files in the correct folder.
+            if (isinstance(store_external, str)): store_external = [store_external, ]
+
+            for _external_attr in store_external:
+                _external_obj = getattr(self.parent, _external_attr, None)
+                
+                if (_external_obj):
+                    _export_items(_external_obj)
+                    del _return[_external_attr]
+
+        try:
+            os.makedirs(os.path.dirname(self.parent.metadata_path), exist_ok=True)
+            with open(self.parent.metadata_path, "w") as _f:
+                json.dump(_return, _f, default=str, indent=4)
+
+        except (TypeError, ) as e:
+            # TypeError: Object of type ### is not JSON serializable
+            # We can't do this Exception any better, it does not actually tell us what that object actually is
+            raise e
+        
+        except (IOError, OSError, RuntimeError, IsADirectoryError) as e:
+            print (stdout.red(f"### {type(e).__name__}: {str(e)}"))
+
+        return None
+
+    def load(
+        self,
+    ) -> Dict[str, Any]:
+        """
+        Import the metadata from the sidecar JSON.
+        This is called automatically after a DescriptionMetadata instance is initialised.
+        """
+        if (self.parent.metadata_path):
+            try:
+                with open(self.parent.metadata_path, "r") as _f:
+                    _data = json.load(_f)
+                    
+                self.update(_data)
+
+            except (json.JSONDecodeError, ) as e:
+                # TypeError: Object of type ### is not JSON serializable
+                # We can't do this Exception any better, it does not actually tell us what that object actually is
+                print (stdout.red(f"### Metadata file for {self.parent.qualname} is not well formatted JSON."))
+                raise e
+            
+            except (IOError, OSError, RuntimeError, IsADirectoryError) as e:
+                # print (stdout.yellow(f">>> No metadata file found for {self.parent.qualname}."))
+                pass
+
+        return self

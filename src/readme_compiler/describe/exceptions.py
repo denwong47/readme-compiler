@@ -20,3 +20,8 @@ class AttributeNotApplicable(FalseEvaluatingException, AttributeError):
     """
     Attribute requested is not valid on the requested Description type.
     """
+
+class ObjectDescriptionRequired(FalseEvaluatingException, TypeError):
+    """
+    Used by `DescriptionMetadata`, raised if a non-`ObjectDescription` instance is passed as parent.
+    """

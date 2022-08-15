@@ -1,12 +1,13 @@
 import os, sys
 
 import abc
+import builtins
 import functools
 import inspect
 import re
 
-from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args, get_type_hints
+from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType, SimpleNamespace
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union, get_origin, get_args
 import typing
 
 from .. import settings
@@ -19,11 +20,72 @@ from . import exceptions
 from .json_elements import  JSONDescriptionElement, \
                             JSONDescriptionCachedProperty, \
                             JSONDescriptionLRUCache, \
-                            JSONDescriptionProperty
+                            JSONDescriptionProperty, \
+                            DescriptionMetadata
 
 import readme_compiler.describe as describe
 
 print = logger.debug
+
+def tidy_annotations(obj:Any):
+    """
+    This aims to fix `|` in annotations that are not resolved.
+    The object is changed in place.
+
+    This enables get_type_hints to not error against 'bool | None' etc.
+    """
+    _annotations = getattr(obj, "__annotations__", None)
+
+    if (_annotations is None): return
+
+    _substitutes = {}
+
+    def _try_load(type_hint:str):
+        try:
+            eval(type_hint, globals(), locals())
+            return True
+        except NameError as e:
+            return False
+
+    if (_annotations):
+        for _key, _value in zip(_annotations.keys(), _annotations.values()):
+            if (isinstance(_value, str)):
+                if ("|" in _value):
+                    _type_hints = tuple([ _type_hint.strip() for _type_hint in _value.split("|") ])
+
+                    # After all that, there could still be weird type references further up the MRO that we do not have access to. In that case, make them `Any`.
+                    if (
+                        all(
+                            map(
+                                _try_load,
+                                _type_hints,
+                            )
+                        )
+                    ):
+                        _substitutes[_key] = Union.__getitem__(
+                            _type_hints
+                        )
+                    else:
+                        _substitutes[_key] = Any
+                else:
+                    if (not _try_load(_value)):
+                        _substitutes[_key] = Any
+
+    if (_substitutes):
+        _annotations.update(_substitutes)
+
+def get_type_hints(obj:Any):
+    """
+    Wrapper around `typing.get_type_hints` to get around "|" in type hints causing `TypeError`.
+    """
+    tidy_annotations(obj)
+
+    if (isinstance(obj, type)):
+        for base in reversed(obj.__mro__):
+            tidy_annotations(base)
+            
+    return typing.get_type_hints(obj)
+    
 
 class ObjectDescription():
     """
@@ -56,15 +118,15 @@ class ObjectDescription():
         return type(self).__name__.lower().replace("description", "")
 
     @property
-    def metadata(self) -> dict:
+    def metadata(self) -> DescriptionMetadata:
         return self._metadata
     
     @metadata.setter
-    def metadata(self, value:dict):
-        if (value):
-            self._metadata = value
+    def metadata(self, value:Union[dict, DescriptionMetadata]):
+        if (isinstance(value, dict)):
+            self._metadata = DescriptionMetadata(value, parent=self)
         else:
-            self._metadata = {}
+            self._metadata = DescriptionMetadata({}, parent=self)
 
     @JSONDescriptionProperty
     def metadata_path(self) -> str:
@@ -86,7 +148,12 @@ class ObjectDescription():
 
     @JSONDescriptionCachedProperty
     def path(self) -> str:
-        return inspect.getfile(self.obj)
+        try:
+            return inspect.getfile(self.obj)
+        except (TypeError, ) as e:
+            # TypeError: <class 'module'> is a built-in class
+            # This will happen because `.type_description` exists, and `builtins.module` will be queried sooner or later.
+            return ""
 
     @JSONDescriptionCachedProperty
     def folder_path(self) -> str:
@@ -95,7 +162,8 @@ class ObjectDescription():
         else:
             return os.path.dirname(self.path)
 
-    @JSONDescriptionCachedProperty
+    # This states metadata_override but
+    @JSONDescriptionCachedProperty.with_metadata_override
     def name(self) -> str:
         return self.obj.__name__
     
@@ -169,7 +237,11 @@ class ObjectDescription():
 
     @JSONDescriptionCachedProperty
     def source(self) -> str:
-        return inspect.getsource(self.obj)
+        try:
+            return inspect.getsource(self.obj)
+        except (OSError, ) as e:
+            # OSError: could not find class definition
+            return "**No Source Code Available**"
 
     @JSONDescriptionProperty
     def isabstract(self) -> bool:
@@ -187,15 +259,63 @@ class ObjectDescription():
             getattr(self.obj, "__isabstractmethod__", False) # check if @abc.abstractmethod has done something to the function.
 
     @property
-    def json(self) -> Dict[str, str]:      
+    def as_dict(self) -> Dict[str, str]:
+        """
+        Return all representations of this object as a dictionary.
+        """
         return {
             _key:(getattr(self, _key) if (not isinstance(_construct, JSONDescriptionLRUCache)) else getattr(self, _key)()) \
                 for _key in dir(self) \
                     if (isinstance(_construct := getattr(type(self), _key, None), JSONDescriptionElement)) # Make sure to getattr from type(self) - otherwise we `property`s would have returned the VALUE instead of itself!
         }
+    
+    @property
+    def as_export_dict(self) -> Dict[str, str]:
+        """
+        Return the representation of this object 
+        """
+        def _nested_export(key_obj:Union[str, Any]) -> Any:
+            if (isinstance(key_obj, str)):
+                construct   = getattr(type(self), key_obj, None)
+                obj         = getattr(self, key_obj, None)
+                key         = key_obj
+            else:
+                construct   = None
+                obj         = key_obj
+                key         = None
+
+
+            if (isinstance(construct, JSONDescriptionLRUCache)):
+                return obj()
+            elif (isinstance(obj, ObjectDescription)):
+                return obj.as_export_dict
+            elif (isinstance(obj, Iterable) and not isinstance(obj, str)):
+                if (key.endswith("_descriptions")):
+                    # This is for all the "attribute_scriptions", "parameters_descriptions" etc.
+                    # In the metadata, these lists need to be converted into `dict`s with the name of the attribute as key.
+                    return {
+                        _item.name if (isinstance(_item, ObjectDescription)) else _item:_nested_export(_item) \
+                            for _item in obj
+                    }
+                else:
+                    return [ _nested_export(_item) for _item in obj ]
+            else:
+                return obj
+
+        return {
+            _key:_nested_export(_key) \
+                for _key in dir(self) \
+                    if (
+                        isinstance(_construct := getattr(type(self), _key, None), JSONDescriptionElement) and \
+                        _construct.metadata_override
+                    ) # Make sure to getattr from type(self) - otherwise we `property`s would have returned the VALUE instead of itself!
+        }
 
     @property
     def caption(self) -> str:
+        """
+        For printing only - used in `.explain()`.
+        """
         return f"{stdout.cyan(type(self).__name__)}{stdout.blue(' of ')}{stdout.cyan(self.obj)}{stdout.blue(' from module ')}{stdout.cyan(ObjectDescription(self.module).qualname)}"
 
     @JSONDescriptionProperty
@@ -211,7 +331,7 @@ class ObjectDescription():
 
         print (" "*indent + self.caption)
         print ("")
-        for _key, _value in zip(self.json, self.json.values()):
+        for _key, _value in zip(self.as_dict, self.as_dict.values()):
             print (" "*indent + "- " +stdout.blue(_key) + ":")
 
             # Expand generators
@@ -315,7 +435,12 @@ class ObjectDescription():
                         modules
                     )
                 )): continue
+        
+            else:
+                # if no modules are provided, at least remove the builtins.
+                if (inspect.getmodule(_value) is builtins): continue
 
+            
             yield _value
 
     @JSONDescriptionCachedProperty
@@ -325,7 +450,7 @@ class ObjectDescription():
         """
         return inspect.getmodule(self.obj)
             
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionProperty
     def modules(self):
         """
         Return an Iterator of all children modules of object
@@ -349,7 +474,7 @@ class ObjectDescription():
             )
         )
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionProperty
     def classes(self):
         """
         Return an Iterator of all children classes of object
@@ -366,6 +491,7 @@ class ObjectDescription():
         """
         Return an Iterator of descriptions of all children classes of object
         """
+        
         return list(
             map(
                 describe.cls.ClassDescription,
@@ -373,7 +499,7 @@ class ObjectDescription():
             )
         )
 
-    @JSONDescriptionCachedProperty
+    @JSONDescriptionProperty
     def functions(self):
         """
         Return an Iterator of all children modules of object
@@ -456,9 +582,15 @@ class ObjectDescription():
 
             return True
 
-        _attrs = set(
-            dir(self.obj) + list(get_type_hints(self.obj).keys())
-        )
+        try:
+            _attrs = set(
+                dir(self.obj) + list(get_type_hints(self.obj).keys())
+            )
+        except (TypeError, ) as e:
+            if ("unsupported operand type(s)" in str(e)):
+                raise exceptions.ObjectNotDescribable(f"{self.obj} have incompatible Type hints: {str(e)}")
+            else:
+                raise e
 
         _metadata = self.metadata if (self.metadata) else {}
 

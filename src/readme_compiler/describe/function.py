@@ -199,8 +199,9 @@ def signature_source_code(
         ):
             _split_qualname = obj.__qualname__.split(".")
 
-            _split_qualname[-2] += "(...)"
-
+            if (len(_split_qualname)>=2):
+                _split_qualname[-2] += "(...)"
+            
             __qualname__ = ".".join(_split_qualname)
         else:
             __qualname__ = obj.__qualname__

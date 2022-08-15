@@ -110,12 +110,12 @@ class ClassDescription(ObjectDescription):
         _context_functions = self.context
 
         if (self.iscontext):
-            return SimpleNamespace(
+            return dict(
                 enter = FunctionDescription(_context_functions[0]),
                 exit = FunctionDescription(_context_functions[1]),
             )
         else:
-            return SimpleNamespace(
+            return dict(
                 enter = None,
                 exit = None,
             )
