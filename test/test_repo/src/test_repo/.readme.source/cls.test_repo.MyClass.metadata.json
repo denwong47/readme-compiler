@@ -1,17 +1,17 @@
 {
     "attributes_descriptions": {
-        "my_attribute": {
-            "annotation_markdown": "``",
-            "return_doc": null,
-            "title": null
-        },
         "my_abstract_property": {
             "annotation_markdown": "",
             "return_doc": null,
             "title": null
         },
         "my_property": {
-            "annotation_markdown": "Get: `List`[ `` ] | `Callable`[ [ `MyClass`, `` ], `` ]; Set: `` | ``",
+            "annotation_markdown": "Get: `List`[ `str` ] | `Callable`[ [ `MyClass`, `int` ], `property` ]; Set: `float` | `map`",
+            "return_doc": null,
+            "title": null
+        },
+        "my_attribute": {
+            "annotation_markdown": "`str`",
             "return_doc": null,
             "title": null
         }
@@ -72,9 +72,9 @@
             "name": "my_class_method",
             "parameters_descriptions": {
                 "param_1": {
-                    "annotation_markdown": "``",
+                    "annotation_markdown": "`str`",
                     "comments": null,
-                    "doc": "Mandatory Parameter of type: ``.",
+                    "doc": "Mandatory Parameter of type: `str`.",
                     "position_description": null,
                     "title": null
                 }
@@ -95,16 +95,16 @@
                     "title": null
                 },
                 "param_1": {
-                    "annotation_markdown": "``",
+                    "annotation_markdown": "`int`",
                     "comments": null,
-                    "doc": "Mandatory Parameter of type: ``.",
+                    "doc": "Mandatory Parameter of type: `int`.",
                     "position_description": null,
                     "title": null
                 },
                 "param_2": {
-                    "annotation_markdown": "`` | `Type`[ `MyClass` ]",
+                    "annotation_markdown": "`float` | `Type`[ `MyClass` ]",
                     "comments": null,
-                    "doc": "Mandatory Parameter of type: `` | `Type`[ `MyClass` ].",
+                    "doc": "Mandatory Parameter of type: `float` | `Type`[ `MyClass` ].",
                     "position_description": null,
                     "title": null
                 }
@@ -136,7 +136,70 @@
         "title": null
     },
     "kind_description": "Abstract Base Class",
-    "methods_descriptions": {},
+    "methods_descriptions": {
+        "my_abstract_method": {
+            "comments": null,
+            "doc": "I am useless",
+            "kind_description": "Abstract Bound Method",
+            "name": "my_abstract_method",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`Any`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Any`.",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": "My Abstract Method"
+        },
+        "my_class_method": {
+            "comments": null,
+            "doc": "Call me a class method",
+            "kind_description": "Class Method",
+            "name": "my_class_method",
+            "parameters_descriptions": {
+                "param_1": {
+                    "annotation_markdown": "`str`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `str`.",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        },
+        "my_method": {
+            "comments": null,
+            "doc": null,
+            "kind_description": "Bound Method",
+            "name": "my_method",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`MyClass`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `MyClass`.",
+                    "position_description": null,
+                    "title": null
+                },
+                "param_1": {
+                    "annotation_markdown": "`int`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `int`.",
+                    "position_description": null,
+                    "title": null
+                },
+                "param_2": {
+                    "annotation_markdown": "`float` | `Type`[ `MyClass` ]",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `float` | `Type`[ `MyClass` ].",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        }
+    },
     "modules_descriptions": {},
     "name": "MyClass",
     "title": "Introduction to MyClass"

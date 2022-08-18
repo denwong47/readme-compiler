@@ -102,7 +102,9 @@ class PropertyType(PseudoAlias):
         if (self.fget_annotation): _annotations.append(f"Get: {AnnotationDescription(self.fget_annotation).markdown}")
         if (self.fset_annotation): _annotations.append(f"Set: {AnnotationDescription(self.fset_annotation).markdown}")
 
-        return "; ".join(_annotations)
+        _return = "; ".join(_annotations)
+
+        return _return
 
     @classmethod
     def from_property(
@@ -233,9 +235,16 @@ class AnnotationDescription(ObjectDescription):
             # Really no clue what this is.
             # Just ignore and hope for no error.
             self.wrapper = None
-            self.args = [self.obj, ]
+            self.args = [ str(self.obj), ]
 
         # print (self.obj, self.wrapper, self.args)
+
+        self.args = list(
+            filter(
+                lambda arg: arg != '',
+                self.args
+            )
+        )
 
     @JSONDescriptionCachedProperty
     def markdown(self) -> str:
@@ -255,7 +264,6 @@ class AnnotationDescription(ObjectDescription):
 
         `List`[ `str` | `int` ] | `Tuple`[ `str` | `typing.Callable` ] | `Callable`[ [ `readme_compiler.describe.function.FunctionDescription`, `float` ], `None` ] | `None`
         """
-
         if (self.wrapper is Union):
             return " | ".join(
                 map(
@@ -274,21 +282,36 @@ class AnnotationDescription(ObjectDescription):
         ):
             # A singular annotation class, or object.
             # Put the quotes on.
-            return '`' + ', '.join(map(
-                lambda arg: f"{arg.markdown if isinstance(arg, AnnotationDescription) else arg}",
-                self.args
-            )) + '`'
-        else:
-            _return = ", ".join(
-                map(
+            if (self.args):
+                # If there are args to begin with
+                
+                _return = '`' + ', '.join(map(
                     lambda arg: f"{arg.markdown if isinstance(arg, AnnotationDescription) else arg}",
                     self.args
+                )) + '`'
+
+                return _return
+            else:
+                # There are no args - give an empty string
+                return ''
+        else:
+            if (self.args):
+                # If there is one arg to begin with
+                _return = ", ".join(
+                    map(
+                        lambda arg: f"{arg.markdown if isinstance(arg, AnnotationDescription) else arg}",
+                        self.args
+                    )
                 )
-            )
+
+                if (_return):_return = " " + _return + " "
+            else:
+                # If there are no args, just put nothing, not ``
+                _return = ""
             
             if (self.wrapper):
-                _return = f"`{self.wrapper.__name__.title() if not isinstance(self.wrapper, str) else self.wrapper}`[ {_return} ]"
+                _return = f"`{self.wrapper.__name__.title() if not isinstance(self.wrapper, str) else self.wrapper}`[{_return}]"
             else:
-                _return = f"[ {_return} ]"
+                _return = f"[{_return}]"
 
             return _return

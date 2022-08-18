@@ -98,10 +98,20 @@ class ObjectDescription():
 
     def __init__(
         self,
-        obj:Callable,
+        obj:Any,
         metadata: Dict[str, Any] = None,
     ) -> None:
+        """
+        ### Describe an `object`
+
+        This is the most generic form of all Description objects, so if a more specific subclass is available, then that should be used instead.
+        
+        If `metadata` is a dict, it will take it as the `metadata` attribute, even if its empty.
+        Otherwise, this will tell `DescriptionMetadata` to look for the sidecar JSON file and load it as metadata.
+
+        """
         self.obj = obj
+        
         self.metadata = metadata
 
     @JSONDescriptionProperty
@@ -124,9 +134,10 @@ class ObjectDescription():
     @metadata.setter
     def metadata(self, value:Union[dict, DescriptionMetadata]):
         if (isinstance(value, dict)):
-            self._metadata = DescriptionMetadata(value, parent=self)
+            # If we already have a dict, then don't bother loading
+            self._metadata = DescriptionMetadata(value, parent=self, skip_load=True)
         else:
-            self._metadata = DescriptionMetadata({}, parent=self)
+            self._metadata = DescriptionMetadata({}, parent=self, skip_load=False)
 
     @JSONDescriptionProperty
     def metadata_path(self) -> str:
@@ -440,6 +451,10 @@ class ObjectDescription():
                 # if no modules are provided, at least remove the builtins.
                 if (inspect.getmodule(_value) is builtins): continue
 
+
+            # Switch lambda function names with their attribute names
+            if (callable(_value) and _value.__name__=="<lambda>"):
+                _value.__name__ = _attr
             
             yield _value
 
@@ -468,9 +483,22 @@ class ObjectDescription():
         Return an Iterator of descriptions of all children modules of object
         """
         return list(
-            map(
-                describe.module.ModuleDescription,
-                self.modules
+            filter(
+                lambda description: not isinstance(
+                                        self.metadata.get(
+                                            "modules_descriptions",
+                                            None
+                                        ),
+                                        dict,
+                                    ) or \
+                                    description.name in self.metadata.get(
+                                        "modules_descriptions",
+                                        []
+                                    ),
+                map(
+                    describe.module.ModuleDescription,
+                    self.modules
+                )
             )
         )
 
@@ -557,14 +585,17 @@ class ObjectDescription():
             )): return False
 
             # REMOVE_TYPES
-            if (
-                # Make sure it has the attribute - otherwise we might get all the type_hints out
-                hasattr(self.obj, name) and \
-                isinstance(
-                    getattr(self.obj, name, inspect._empty),
-                    REMOVE_TYPES
-                )
-            ): return False
+            try:
+                if (
+                    # Make sure it has the attribute - otherwise we might get all the type_hints out
+                    hasattr(self.obj, name) and \
+                    isinstance(
+                        getattr(self.obj, name, inspect._empty),
+                        REMOVE_TYPES
+                    )
+                ): return False
+            except KeyboardInterrupt as e:
+                return input(f"Include {self.qualname}.{name} as attribute? [Y/N] ").lower().startswith("Y")
 
             # Belongs to module if self.obj is a module
             if (

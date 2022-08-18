@@ -33,7 +33,7 @@ class ClassDescription(ObjectDescription):
     """
     An object representing the various properties of a class.
     """
-    obj:CLASS_TYPES
+    obj:Union.__getitem__(CLASS_TYPES)
 
     def __init__(
         self,

@@ -40,6 +40,7 @@ class JSONDescriptionElement():
             _return = func(self, *args, **kwargs)
                 
             if (func.__name__ in _metadata):
+
                 _metadata_for_attr = _metadata.get(func.__name__, None)
                 
                 if (
@@ -58,7 +59,10 @@ class JSONDescriptionElement():
                     # [ ObjectDescription(...), ObjectDescription(...), ... ]
                     for _item in _return:
                         if (isinstance(_item, describe.object.ObjectDescription)):
-                            _item.metadata = _metadata_for_attr.get(_item.name, None)
+                            if (isinstance(_metadata_for_attr, dict)):
+                                _item.metadata = _metadata_for_attr.get(_item.name, None)
+                            else:
+                                _item.metadata = _metadata_for_attr
 
                 elif (isinstance(_return, describe.object.ObjectDescription)):
                     # 
@@ -227,6 +231,7 @@ class DescriptionMetadata(dict):
         self,
         *args,
         parent:"describe.object.ObjectDescription" = None,
+        skip_load:bool = False,
         **kwargs,
     ) -> None:
         """
@@ -237,10 +242,29 @@ class DescriptionMetadata(dict):
         
         super().__init__(*args, **kwargs)
 
-        self.load()
+        # Load JSON sidecar only if we need to.
+        # We'll leave it to the parent to decide if metadata is
+        # - contained in sidecar, or
+        # - deliberately empty
+        if (not skip_load): self.load()
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()}, parent={type(self.parent).__name__}({self.parent.qualname}))"
+    
+    @classmethod
+    def empty(
+        cls,
+        parent:"describe.object.ObjectDescription" = None,
+    ) -> "DescriptionMetadata":
+        """
+        ### Initialise an empty `DescriptionMetadata` instance.
+
+        This will NOT load the sidecar JSON file.
+        """
+        return cls(
+            parent      = parent,
+            skip_load   = True,
+        )
 
     @property
     def parent(self) -> "describe.object.ObjectDescription":

@@ -1,12 +1,12 @@
 {
     "attributes_descriptions": {
-        "id": {
-            "annotation_markdown": "``",
+        "nothing": {
+            "annotation_markdown": "`bool`",
             "return_doc": null,
             "title": null
         },
-        "nothing": {
-            "annotation_markdown": "``",
+        "id": {
+            "annotation_markdown": "`int`",
             "return_doc": null,
             "title": null
         }
@@ -58,9 +58,9 @@
                     "title": null
                 },
                 "func": {
-                    "annotation_markdown": "`Callable`[  ]",
+                    "annotation_markdown": "`Callable`[]",
                     "comments": null,
-                    "doc": "Mandatory Parameter of type: `Callable`[  ].",
+                    "doc": "Mandatory Parameter of type: `Callable`[].",
                     "position_description": null,
                     "title": null
                 }
@@ -92,7 +92,31 @@
         "title": null
     },
     "kind_description": "Class",
-    "methods_descriptions": {},
+    "methods_descriptions": {
+        "my_decorator": {
+            "comments": null,
+            "doc": null,
+            "kind_description": "Bound Method",
+            "name": "my_decorator",
+            "parameters_descriptions": {
+                "self": {
+                    "annotation_markdown": "`Any`",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Any`.",
+                    "position_description": null,
+                    "title": null
+                },
+                "func": {
+                    "annotation_markdown": "`Callable`[]",
+                    "comments": null,
+                    "doc": "Mandatory Parameter of type: `Callable`[].",
+                    "position_description": null,
+                    "title": null
+                }
+            },
+            "title": null
+        }
+    },
     "modules_descriptions": {},
     "name": "MySubModule3Class",
     "title": "Useless class MySubModule3Class"

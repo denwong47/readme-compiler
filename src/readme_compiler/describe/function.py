@@ -244,7 +244,7 @@ class FunctionDescription(ObjectDescription):
     obj:Union.__getitem__(FUNCTION_TYPES)
 
     def __new__(
-        cls: type["FunctionDescription"],
+        cls:Type["FunctionDescription"],
         obj: Callable,
         *args,
         **kwargs,
