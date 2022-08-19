@@ -82,13 +82,13 @@ class ClassDescription(ObjectDescription):
     def init_description(self) -> FunctionDescription:
         if (callable(self.init)):
             # We have a valid __init__
-            return FunctionDescription(self.init)
+            return FunctionDescription(self.init, parent=self)
         else:
             # Fake __init__
             def __init__(self, *args, **kwargs)->None: return super().__init__(*args, **kwargs)
             __init__ = __init__.__get__(self.obj) # Manually bind the method to `obj`
 
-            return FunctionDescription(__init__)
+            return FunctionDescription(__init__, parent=self)
     
     @JSONDescriptionCachedProperty
     def context(self) -> Tuple[
@@ -111,8 +111,8 @@ class ClassDescription(ObjectDescription):
 
         if (self.iscontext):
             return dict(
-                enter = FunctionDescription(_context_functions[0]),
-                exit = FunctionDescription(_context_functions[1]),
+                enter = FunctionDescription(_context_functions[0], parent=self),
+                exit = FunctionDescription(_context_functions[1], parent=self),
             )
         else:
             return dict(
@@ -141,7 +141,7 @@ class ClassDescription(ObjectDescription):
     
     @JSONDescriptionCachedProperty.with_metadata_override
     def call_description(self) -> FunctionDescription:
-        return FunctionDescription(self.call)
+        return FunctionDescription(self.call, parent=self)
 
     @JSONDescriptionCachedProperty.with_metadata_override
     def kind_description(self) -> str:

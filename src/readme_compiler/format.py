@@ -19,7 +19,7 @@ def format_source_code(
     source_code:str,
     *,
     write_back:black.WriteBack  = black.WriteBack.YES,
-    mode:black.mode.Mode        = black.FileMode(),
+    mode:black.mode.Mode        = black.FileMode(line_length=20),
 ) -> str:
     """
     Use `black` to format the code of object.
@@ -126,7 +126,7 @@ def unremark(
 def code(
     source_code:str,
     *,
-    format:bool=True,
+    format:bool=False,
     **kwargs,
 )->str:
     """

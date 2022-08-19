@@ -55,10 +55,10 @@ class describe():
         
         if (isinstance(obj, CLASS_TYPES)):
             return cls.type(obj, metadata=metadata)
-        elif (isinstance(obj, FUNCTION_TYPES)):
-            return cls.function(obj, metadata=metadata)
         elif (isinstance(obj, MODULE_TYPES)):
             return cls.module(obj, metadata=metadata)
+        elif (isinstance(obj, FUNCTION_TYPES)):
+            return cls.function(obj, metadata=metadata)
         elif (isinstance(obj, PARAMETER_TYPES)):
             return cls.parameter(obj, metadata=metadata)
         elif (isinstance(obj, ANNOTATION_TYPES)): # This includes `type` - cannot be placed above class.

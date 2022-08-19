@@ -3,9 +3,9 @@
 
 This is a Test Python Module that does nothing.
 It is simply for:
-    - testing `readme_compiler.describe` module
-    - testing python code formatting
-    - testing markdown formatting
+- testing `readme_compiler.describe` module
+- testing python code formatting
+- testing markdown formatting
 """
 
 import abc

@@ -12,7 +12,7 @@ from types import ModuleType, FunctionType, SimpleNamespace
 from typing import Any, Dict, List, Tuple, Type, Union
 
 from .classes import MarkdownTemplateMode
-from . import exceptions, settings
+from . import exceptions, settings, stdout
 from .log import logger
 
 print = logger.debug
@@ -342,11 +342,13 @@ def get_object(
             raise exceptions.SourceNotFound(
                 f"{source} cannot be imported because of {type(e).__name__}: {str(e)}"
             )
-
+            
     # Look at obj and source to see what they are
     if (obj is None):
         if (isinstance(source, str)):
             source = _get_source(source)
+
+            
 
         if (isinstance(source, ModuleType)):
             return source

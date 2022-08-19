@@ -22,7 +22,11 @@ from ..settings.enums import RenderPurpose
 
 from .repopath import LINKS_PATTERN
 
-
+SINGLE_LINE_SPACER = r"""ㅤ\
+ㅤ"""
+DOUBLE_LINE_SPACER = r"""ㅤ\
+ㅤ\
+ㅤ"""
 
 print = logger.debug
 
@@ -70,7 +74,6 @@ class TransformerMeta(abc.ABCMeta):
         """
         Add any declared concrete transformers in to a universal list.
         """
-        print(inspect.isabstract(transformer))
         if (not inspect.isabstract(transformer)):
             cls.declared.append(transformer)
             
@@ -166,6 +169,55 @@ class SourceLinkTransformer(Transformer):
                     text[_substitution.span[1]:]
 
         return text
+
+class HeadersParagraphTransformer(Transformer):
+    """
+    Before any headers, add extra empty lines.
+    """
+    def __init__(
+        self,
+        repository: Any = None,
+        min_level: int = 2,
+        spacer: str = DOUBLE_LINE_SPACER,
+        *,
+        skip_paths: List[str] = None
+    ) -> None:
+        super().__init__(repository, skip_paths=skip_paths)
+
+        self.min_level = min_level
+        self.spacer = spacer
+
+    @property
+    def pattern(
+        self,
+    )->re.Pattern:
+        """
+        Return a regular expression `Pattern` object 
+        """
+        return re.compile(
+            r"(\n{2,})(\#{1,"+str(self.min_level)+r"} )(?=\S)",
+            re.MULTILINE,
+        )
+    
+    def should_transform(
+        self,
+        path: str,
+        *,
+        purpose: RenderPurpose = RenderPurpose.STANDARD
+    ) -> bool:
+        """
+        This always applies.
+        """
+        return True
+
+    def transform(
+        self,
+        text:str,
+    )->str:
+        return SafeString(self.pattern.sub(
+            fr"\n\n{self.spacer}\n\2",
+            text
+        ))
 
 class FooterTransformer(Transformer):
     """

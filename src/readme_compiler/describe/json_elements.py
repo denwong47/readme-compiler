@@ -37,12 +37,16 @@ class JSONDescriptionElement():
             _metadata = getattr(self, "metadata", None)
             if (not isinstance(_metadata, dict)): _metadata = {}
 
+            # # TODO DELETE
+            # if (isinstance(self, describe.attribute.AttributeDescription) and func.__name__ in ("title", "doc")):
+            #     print (stdout.magenta([func.__name__, _metadata]))
+
             _return = func(self, *args, **kwargs)
                 
             if (func.__name__ in _metadata):
 
                 _metadata_for_attr = _metadata.get(func.__name__, None)
-                
+
                 if (
                     isinstance(_return, Iterable) and \
                     not isinstance(_return, str) and \

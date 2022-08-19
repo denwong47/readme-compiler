@@ -27,6 +27,10 @@ import readme_compiler.describe as describe
 
 print = logger.debug
 
+ATTRIBUTE_BLACKLIST = (
+    "do_not_call_in_templates",
+)
+
 def tidy_annotations(obj:Any):
     """
     This aims to fix `|` in annotations that are not resolved.
@@ -112,6 +116,14 @@ class ObjectDescription():
         """
         self.obj = obj
         
+        # Weird thing in django.template.base:
+        # - if your object is callable, it will attempt to call it witout any arguments.
+        # - there is this hidden flag in the source code that allows you to skip it.
+        try:
+            self.obj.do_not_call_in_templates = True
+        except AttributeError as e:
+            pass
+        
         self.metadata = metadata
 
     @JSONDescriptionProperty
@@ -173,7 +185,8 @@ class ObjectDescription():
         else:
             return os.path.dirname(self.path)
 
-    # This states metadata_override but
+    # This states metadata_override but it doesn't work.
+    # This is added so that the dictionary knows the name of the key when exporting JSON.
     @JSONDescriptionCachedProperty.with_metadata_override
     def name(self) -> str:
         return self.obj.__name__
@@ -230,7 +243,7 @@ class ObjectDescription():
 
     @JSONDescriptionCachedProperty
     def menu_item(self) -> str:
-        return f"{self.kind_description} `{self.qualname}`"
+        return f"*{self.kind_description}* `{self.qualname}`"
 
     @JSONDescriptionCachedProperty
     def menu_anchor(self) -> str:
@@ -238,8 +251,15 @@ class ObjectDescription():
 
     @JSONDescriptionCachedProperty
     def parsed_doc(self) -> Dict[str, Union[str, None]]:
+        if (not isinstance(
+                _doc := self.metadata.get("doc", None),
+                str
+            )
+        ):
+            _doc = inspect.getdoc(self.obj)
+
         return format.split_title(
-            inspect.getdoc(self.obj)
+            _doc
         )
 
     @JSONDescriptionCachedProperty.with_metadata_override
@@ -404,7 +424,6 @@ class ObjectDescription():
         """
         Get children of the object, filtered by the parameters specified.
         """
-
         for _attr in filter(
             # Filter
             lambda name: (
@@ -423,6 +442,9 @@ class ObjectDescription():
                     name[1]!="_"
                 ) \
                     if (not sunder) else True
+            ) and (
+                # Django callable override
+                not name in ATTRIBUTE_BLACKLIST
             ),
             dir(self.obj)
         ):
@@ -453,7 +475,7 @@ class ObjectDescription():
 
 
             # Switch lambda function names with their attribute names
-            if (callable(_value) and _value.__name__=="<lambda>"):
+            if (callable(_value) and _value.__name__ in ("<lambda>", "<locals>")):
                 _value.__name__ = _attr
             
             yield _value
@@ -546,7 +568,10 @@ class ObjectDescription():
         """
         return list(
             map(
-                describe.function.FunctionDescription,
+                lambda func: describe.function.FunctionDescription(
+                    func,
+                    parent = self,
+                ),
                 self.functions
             )
         )
@@ -570,6 +595,9 @@ class ObjectDescription():
         sunder:bool = False
 
         def _valid_attributes(name:str):
+            # attribute blacklist; to do with django built in attributes.
+            if (name in ATTRIBUTE_BLACKLIST): return False
+
             # dunder
             if (not dunder and (
                 name.startswith("__") and \

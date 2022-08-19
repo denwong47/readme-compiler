@@ -27,7 +27,8 @@ from .properties import GitProperties
 from .repopath import RepositoryPath
 from .transformers import   transformers, \
                             Transformer, \
-                            TransformerMeta 
+                            TransformerMeta, \
+                            SINGLE_LINE_SPACER
 
 
 
@@ -113,7 +114,9 @@ class RepositoryDirectory():
         Generate a DjangoContext from this `RepositoryDirectory`.
         """
         return DjangoContext({
+            "spacer": SINGLE_LINE_SPACER,
             "repository_object": self,  # This is not for Template syntax use - more for Template tags.
+            "repository_path": self.repopath, # This is not for Template syntax use - more for Template tags.
             "git": self.git,
             "globals": bin.map_unders(globals()),
         })
@@ -179,6 +182,39 @@ class RepositoryDirectory():
 
         return _rendered
 
+    def template(
+        self,
+        template:str,
+        *,
+        template_path:str       = None, # None is correct here, see doc string below.
+        template_filename:str   = settings.TEMPLATE_FILE_NAME,
+    ) -> "MarkdownTemplate":
+        """
+        ### Get a `MarkdownTemplate` instance
+
+        The `MarkdownTemplate` object will be local to this `RepositoryDirectory`, and of the type `template`.
+
+        This works slightly differently to the underlying `MarkdownTemplate.from_template()` - if `template_path` is provided, then the path will be treated as absolute; otherwise this will be loaded from settings as repopath.
+
+        Raises a `FileNotFoundError` if the template is not found.
+        """
+        if (not isinstance(template_path, str)):
+            return MarkdownTemplate.from_template(
+                template            = template,
+                transformers        = self.transformers,
+                repopath            = self.repopath,
+                template_path       = settings.TEMPLATE_LOCATION,
+                template_filename   = template_filename,
+            )
+        else:
+            return MarkdownTemplate.from_template(
+                template            = template,
+                transformers        = self.transformers,
+                repopath            = None,
+                template_path       = template_path,
+                template_filename   = template_filename,
+            )
+
     def list_markdowns(
         self,
         *,
@@ -198,6 +234,7 @@ class RepositoryDirectory():
         _blacklist = [
             self.repopath.abspath(settings.ENV_PATH),
             self.repopath.abspath(self.settings.paths.template),
+            self.repopath.abspath(settings.TEMPLATE_LOCATION),
         ]
 
         with WorkingDirectory(path=path) as cwd:
@@ -205,7 +242,8 @@ class RepositoryDirectory():
 
                 if (recursive and \
                     os.path.isdir(_file) and \
-                    os.path.abspath(_file) not in _blacklist
+                    os.path.abspath(_file) not in _blacklist and \
+                    not settings.TEMPLATE_LOCATION in os.path.abspath(_file)
                 ):
                     # If its a directory, and we are doing it recursively, then recursively call this method
                     _return_list += self.list_markdowns(
@@ -378,6 +416,66 @@ class MarkdownTemplate(DjangoTemplate):
                 raise FileNotFoundError(
                     f"{repr(path)} not found."
                 )
+
+    @classmethod
+    def from_template(
+        cls:"MarkdownTemplate",
+        template:str,
+        *,
+        transformers: Iterable[Callable[[str], str]]    = None,
+        repopath:Union[
+            RepositoryPath,
+            RepositoryDirectory,
+        ] = None,
+        template_path:str       = settings.TEMPLATE_LOCATION,
+        template_filename:str   = settings.TEMPLATE_FILE_NAME,
+    )->"MarkdownTemplate":
+        """
+        ### Loads a markdown template
+
+        Loads a markdown template from 
+
+        If `repopath` is specified as a `RepositoryPath` or `RepositoryDirectory`, then `settings.TEMPLATE_LOCATION` will be treated as a RepositoryPath (i.e. root directory pointed to the RepositoryPath).
+        Otherwise `settings.TEMPLATE_LOCATION` will be treated as an absolute system path.
+        """
+        if (isinstance(repopath, RepositoryDirectory)):
+            repopath = repopath.repopath
+
+        if (not isinstance(repopath, RepositoryPath)):
+            repopath = None
+            
+        if (repopath):
+            _filepath = repopath.abspath(
+                template_path
+            )
+        else:
+            _filepath = template_path
+
+        _abspath = os.path.join(
+            _filepath,
+            template_filename.format(
+                template    = template,
+            )
+        )
+
+        if (os.path.isfile(_abspath)):
+            # File exists
+            _abspath = os.path.abspath(_abspath)
+
+            with open(_abspath, "r") as _f:
+                return cls(
+                    _f.read(),
+                    transformers    = transformers,
+                    path            = _abspath,
+                )
+
+        else:
+            # File does not exists
+            raise FileNotFoundError(
+                f"{repr(_abspath)} not found."
+            )
+
+        
 
     def render(
         self:"MarkdownTemplate",

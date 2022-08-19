@@ -40,7 +40,7 @@ class AttributeDescription(ObjectDescription):
     name        = JSONDescriptionProperty.as_stored_attribute("name",       annotation=str)
     parent      = JSONDescriptionProperty.as_stored_attribute("parent",     annotation=Union[ModuleType, type])
     comments    = JSONDescriptionProperty.as_stored_attribute("comments",   annotation=str)
-    doc         = JSONDescriptionProperty.as_stored_attribute("doc",        annotation=str)
+    # doc         = JSONDescriptionProperty.as_stored_attribute("doc",        annotation=str)
     path        = JSONDescriptionProperty.as_stored_attribute("path",       annotation=str)
     annotation  = JSONDescriptionProperty.as_stored_attribute("annotation", annotation=typing._GenericAlias)
 
@@ -84,6 +84,14 @@ class AttributeDescription(ObjectDescription):
                 self.name,
             )
         )
+
+    @JSONDescriptionCachedProperty.with_metadata_override
+    def doc(self) -> Union[str, None]:
+        """
+        An attribute cannot store doc strings.
+        Hence if metadata_override is not available, just return nothing.
+        """
+        return ""
 
     @JSONDescriptionCachedProperty
     def signature(self):

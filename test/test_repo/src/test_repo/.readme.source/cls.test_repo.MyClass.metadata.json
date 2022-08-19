@@ -5,13 +5,18 @@
             "return_doc": null,
             "title": null
         },
-        "my_property": {
-            "annotation_markdown": "Get: `List`[ `str` ] | `Callable`[ [ `MyClass`, `int` ], `property` ]; Set: `float` | `map`",
+        "do_not_call_in_templates": {
+            "annotation_markdown": "`Any`",
             "return_doc": null,
             "title": null
         },
         "my_attribute": {
             "annotation_markdown": "`str`",
+            "return_doc": null,
+            "title": null
+        },
+        "my_property": {
+            "annotation_markdown": "Get: `List`[ `str` ] | `Callable`[ [ `MyClass`, `int` ], `property` ]; Set: `float` | `map`",
             "return_doc": null,
             "title": null
         }
@@ -40,7 +45,7 @@
         "title": null
     },
     "classes_descriptions": {},
-    "comments": "# My COmments\n",
+    "comments": "# My COmments",
     "context_code": null,
     "context_descriptions": {
         "enter": null,
@@ -113,7 +118,7 @@
         }
     },
     "init_description": {
-        "comments": "# Fake __init__\n",
+        "comments": "# Fake __init__",
         "doc": null,
         "kind_description": "Bound Method",
         "name": "__init__",

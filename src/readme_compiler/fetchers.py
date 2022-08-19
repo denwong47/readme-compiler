@@ -3,9 +3,15 @@ import re
 import subprocess
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
+import readme_compiler.exceptions as exceptions
+
 from .log import logger
 
+
 print = logger.debug
+
+
+    
 
 def shell_output(command:List[str])->str:
     try:    
@@ -24,6 +30,11 @@ def shell_output(command:List[str])->str:
 
     except Exception as e:
         print (f"<{type(e).__name__}> occured during call of {repr(command)}: {e} ")
+        
+        if (isinstance(e, subprocess.CalledProcessError)):
+            return exceptions.ShellReturnError(e)
+        else:
+            return exceptions.ShellRuntimeError(str(e))
 
 def regex_output(
     source:str,

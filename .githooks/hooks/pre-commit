@@ -13,4 +13,5 @@ if ! python3 -m pip list | grep readme-compiler; then
     python3 -m pip install git+https://github.com/denwong47/readme-compiler.git
 fi
 
-python3 -m readme_compiler
+# cd ./src/readm_compiler
+# python3 -m readme_compiler

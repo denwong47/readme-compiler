@@ -14,6 +14,7 @@ else:
 ```
 The Exception instance can then be further interrogated to decide if it should be raised or handled.
 """
+import subprocess
 
 class FalseEvaluatingException(Exception):
     """
@@ -28,6 +29,32 @@ class FalseEvaluatingException(Exception):
     def __bool__(self)->bool:
         return False
     __nonzero__ = __bool__
+
+class ShellReturnError(subprocess.CalledProcessError, FalseEvaluatingException):
+    """
+    Exception for errors reported by OS during Shell commands.
+    """
+    def __init__(
+        self,
+        returncode: int,
+        cmd: list = None,
+        output: bytes = None,
+        stderr: bytes = None,
+    ):
+        if (isinstance(returncode, subprocess.CalledProcessError)):
+            _called_process_error = returncode
+
+            returncode  = _called_process_error.returncode
+            cmd         = _called_process_error.cmd
+            output      = _called_process_error.output
+            stderr      = _called_process_error.stderr
+
+        super().__init__(returncode, cmd, output, stderr)
+
+class ShellRuntimeError(OSError, FalseEvaluatingException):
+    """
+    Exception for any non-`subprocess.CalledProcessError` exceptions thrown during Shell subprocess.
+    """
 
 class InvalidFunctionArgument(ValueError, FalseEvaluatingException):
     """

@@ -1,27 +1,50 @@
 import inspect
 import re
-from types import ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType
+from types import (
+    ModuleType,
+    MethodType,
+    MethodWrapperType,
+    FunctionType,
+    TracebackType,
+    FrameType,
+    CodeType,
+)
 import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from .. import stdout
 
-from .json_elements import JSONDescriptionCachedProperty, JSONDescriptionLRUCache, JSONDescriptionProperty
+from .json_elements import (
+    JSONDescriptionCachedProperty,
+    JSONDescriptionLRUCache,
+    JSONDescriptionProperty,
+)
 from .object import ObjectDescription
 from .parameter import AnnotationDescription, ParameterDescription
+
 from .. import format
 from . import exceptions
 
-FUNCTION_TYPES = (ModuleType, MethodType, MethodWrapperType, FunctionType, TracebackType, FrameType, CodeType)
+FUNCTION_TYPES = (
+    # ModuleType,     
+    MethodType,
+    MethodWrapperType,
+    FunctionType,
+    TracebackType,
+    FrameType,
+    CodeType,
+)
 
-def isbound(func:Callable) -> Union[Any, None]:
+
+def isbound(func: Callable) -> Union[Any, None]:
     """
     Return the bound object if `func` is a bound method,
     or return None if `func` is unbound.
     """
     return getattr(func, "__self__", None)
 
-def isinstancemethod(method:Callable) -> bool:
+
+def isinstancemethod(method: Callable) -> bool:
     """
     This is a bit of a brute force approach to figure out if something is an instance method:
     i.e. MyClass.method instead of MyClass().method - the latter of which is called a `bound` method.
@@ -45,24 +68,25 @@ def isinstancemethod(method:Callable) -> bool:
             (
                 isbound,
                 isfunction,
-            )
+            ),
         )
     )
     # We still don't know what class its attached to, unfortunately.
-    
-    
-def isfunction(method:Callable) -> bool:
+
+
+def isfunction(method: Callable) -> bool:
     """
     This look for the module of the method, and see if `module.method` is identical to method.
     """
     _module = inspect.getmodule(method)
 
-    if (isinstance(_module, ModuleType)):
+    if isinstance(_module, ModuleType):
         return getattr(_module, method.__name__, None) is method
     else:
         return False
 
-def isclassmethod(method:Callable) -> bool:
+
+def isclassmethod(method: Callable) -> bool:
     """
     Check if a method is:
     - bound to a type, i.e. `__self__` is a type,
@@ -72,7 +96,7 @@ def isclassmethod(method:Callable) -> bool:
     See https://stackoverflow.com/questions/19227724/check-if-a-function-uses-classmethod .
     """
 
-    bound_to = getattr(method, '__self__', None)
+    bound_to = getattr(method, "__self__", None)
     if not isinstance(bound_to, type):
         # must be bound to a class
         return False
@@ -86,48 +110,47 @@ def isclassmethod(method:Callable) -> bool:
 
 
 def parameters(
-    obj:Callable,
+    obj: Callable,
     *,
-    remove_self_cls:bool=False,
-    omit:Tuple[str]=None,
-)->List[inspect.Parameter]:
+    remove_self_cls: bool = False,
+    omit: Tuple[str] = None,
+) -> List[inspect.Parameter]:
     """
     Get the parameters of a callable in a list, with option to remove items if required.
     """
-    if (not isinstance(omit, Iterable)):
+    if not isinstance(omit, Iterable):
         omit = ()
-    elif (isinstance(omit, str)):
-        omit = (omit, )
+    elif isinstance(omit, str):
+        omit = (omit,)
 
     _signature = inspect.signature(obj=obj)
     _parameters = list(_signature.parameters.values())
 
-    if (len(_parameters)):
+    if len(_parameters):
         # We have some _parameters to play with
-        if (remove_self_cls):
-            if (_parameters[0].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD and \
-                _parameters[0].name in ("self", "cls", "self_cls", "cls_self", "selfcls", "clsself") and \
-                _parameters[0].default is inspect._empty):
+        if remove_self_cls:
+            if (
+                _parameters[0].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+                and _parameters[0].name
+                in ("self", "cls", "self_cls", "cls_self", "selfcls", "clsself")
+                and _parameters[0].default is inspect._empty
+            ):
 
                 # remove any `self`, `cls` and the likes from `_parameters`, then replace it in `_signature`.
                 _parameters.pop(0)
 
         # remove parameters in omit list
-        _parameters = list(
-            filter(
-                lambda param: param.name not in omit,
-                _parameters
-            )
-        )
+        _parameters = list(filter(lambda param: param.name not in omit, _parameters))
 
     return _parameters
 
+
 def signature(
-    obj:Callable,
+    obj: Callable,
     *,
-    remove_self_cls:bool=False,
-    omit:Tuple[str]=None,
-)->inspect.Signature:
+    remove_self_cls: bool = False,
+    omit: Tuple[str] = None,
+) -> inspect.Signature:
     """
     Get the signature of a callable, with option to remove items if required.
 
@@ -139,10 +162,10 @@ def signature(
         obj=obj,
         follow_wrapped=True,
     )
-    
+
     # Get rid of self/cls/self_cls/cls_self etc
     _signature = _signature.replace(
-        parameters = parameters(
+        parameters=parameters(
             obj=obj,
             remove_self_cls=remove_self_cls,
             omit=omit,
@@ -151,63 +174,82 @@ def signature(
 
     return _signature
 
+
 def signature_source_code(
-    obj:Callable,
-)->str:
+    obj: Callable,
+    *,
+    name:str     = None,
+    qualname:str = None,
+) -> str:
     """
     Get the signature of a callable as a formatted `str`.
+
+    You can specify a name and qualname override; otherwise it will just use __name__ and __qualname__, which is at times not very intuitive.
     """
-    PLACEHOLDER_CODE    = "__VOID_FUNCTION__()"
-    PLACEHOLDER_PATTERN = re.compile(r":\s+"+re.escape(PLACEHOLDER_CODE)+r"\s*$", re.MULTILINE)
-
-    DUNDER_INIT_NAME    = "__init__"
-    DUNDER_NEW_NAME    = "__new__"
-
-    _signature = signature(
-        obj=obj,
-        remove_self_cls=True
+    PLACEHOLDER_CODE = "__VOID_FUNCTION__()"
+    PLACEHOLDER_PATTERN = re.compile(
+        r":\s+" + re.escape(PLACEHOLDER_CODE) + r"\s*$", re.MULTILINE
     )
 
+    RETURN_NONE_PATTERN = re.compile(
+        r"(?<=\))\s*->\s*None\s*:\s*" + \
+            re.escape(PLACEHOLDER_CODE) + \
+            r"\s*$",
+        re.MULTILINE
+    )
+
+    DUNDER_INIT_NAME = "__init__"
+    DUNDER_NEW_NAME = "__new__"
+
+    if (not name):      name = obj.__name__
+    if (not qualname):  qualname = obj.__qualname__
+
+    _signature = signature(obj=obj, remove_self_cls=True)
+
     _formatted_code = format.source_code(
-        f"def {obj.__name__}{_signature}: {PLACEHOLDER_CODE}"
+        f"def {name}{_signature}: {PLACEHOLDER_CODE}"
     )
 
     # Further transformations:
 
     # Changing the name of the declaration.
-    if (obj.__name__ in (
+    if name in (
         DUNDER_INIT_NAME,
         DUNDER_NEW_NAME,
-    )):
+    ):
         # subsitute __init__ with the class name
         _formatted_code = _formatted_code.replace(
-            f"def {obj.__name__}",
-            obj.__qualname__.split(".")[-2], # Get only the Class name
+            f"def {name}",
+            qualname.split(".")[-2],  # Get only the Class name
         )
-    elif (isinstance(obj, classmethod)):
+
+        # Get rid of any -> None - we don't want to show that.
+        _formatted_code = RETURN_NONE_PATTERN.sub(
+            "",
+            _formatted_code
+        )
+        
+    elif isinstance(obj, classmethod):
         # subsitute __new__ with the class name
         _formatted_code = _formatted_code.replace(
-            obj.__name__,
-            obj.__qualname__,
+            name,
+            qualname,
             1,
         )
     else:
         # subsitute name with full qualified name
-        if (
-            isinstancemethod(obj) or \
-            isbound(obj)
-        ):
-            _split_qualname = obj.__qualname__.split(".")
+        if isinstancemethod(obj) or isbound(obj):
+            _split_qualname = qualname.split(".")
 
-            if (len(_split_qualname)>=2):
+            if len(_split_qualname) >= 2:
                 _split_qualname[-2] += "(...)"
-            
+
             __qualname__ = ".".join(_split_qualname)
         else:
-            __qualname__ = obj.__qualname__
+            __qualname__ = qualname
 
         _formatted_code = _formatted_code.replace(
-            obj.__name__,
+            name,
             __qualname__,
             1,
         )
@@ -218,15 +260,17 @@ def signature_source_code(
         1,
     )
 
-    return _formatted_code
+    return _formatted_code.strip()
 
 
-def raises(obj:Callable)->List[str]:
+def raises(obj: Callable) -> List[str]:
     """
     Return a list of `str` names of `BaseException`s that are mentioned literally in the source code of the callable.
     """
-    RAISES_PATTERN = re.compile(r"(?<=[:\n])\s*raise\s+(?P<exception_type>[A-Z][\w\._]+)\(", re.MULTILINE)
-    
+    RAISES_PATTERN = re.compile(
+        r"(?<=[:\n])\s*raise\s+(?P<exception_type>[A-Z][\w\._]+)\(", re.MULTILINE
+    )
+
     _exceptions = []
     for _raise in RAISES_PATTERN.finditer(inspect.getsource(obj)):
         _type_name = _raise.group("exception_type")
@@ -241,20 +285,22 @@ class FunctionDescription(ObjectDescription):
     """
     Describe a function/method in `dict` form.
     """
-    obj:Union.__getitem__(FUNCTION_TYPES)
+
+    obj: Union.__getitem__(FUNCTION_TYPES)
+    parent: ObjectDescription
 
     def __new__(
-        cls:Type["FunctionDescription"],
+        cls: Type["FunctionDescription"],
         obj: Callable,
         *args,
         **kwargs,
-    ) -> Union[
-        exceptions.ObjectNotDescribable,
-        "FunctionDescription",
-    ]:
-        if (not isinstance(obj, FUNCTION_TYPES)):
+    ) -> Union[exceptions.ObjectNotDescribable, "FunctionDescription",]:
+        if not isinstance(obj, FUNCTION_TYPES):
             return exceptions.ObjectNotDescribable(
-                f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: " + ', '.join(map(lambda t:"'"+stdout.white(t.__name__)+"'", FUNCTION_TYPES))
+                f"Cannot describe '{stdout.red(type(obj).__name__)}' - has to be one of the following types: "
+                + ", ".join(
+                    map(lambda t: "'" + stdout.white(t.__name__) + "'", FUNCTION_TYPES)
+                )
             )
 
         return super().__new__(cls)
@@ -263,10 +309,15 @@ class FunctionDescription(ObjectDescription):
         self,
         obj: Callable,
         metadata: Dict[str, Any] = None,
+        *,
+        parent: ObjectDescription = None,
     ) -> None:
-        if (isinstance(obj, type)):
-            raise ValueError(f"Ambigious {type(self).__name__} call on class {stdout.red(type(obj).__name__)}: please specify if you want to descirbe {type(self).__name__}.__init__, {type(self).__name__}.__new__ or {type(self).__name__}.__call__.")
+        if isinstance(obj, type):
+            raise ValueError(
+                f"Ambigious {type(self).__name__} call on class {stdout.red(type(obj).__name__)}: please specify if you want to descirbe {type(self).__name__}.__init__, {type(self).__name__}.__new__ or {type(self).__name__}.__call__."
+            )
 
+        self.parent = parent
         super().__init__(obj, metadata)
 
     @JSONDescriptionCachedProperty
@@ -287,22 +338,19 @@ class FunctionDescription(ObjectDescription):
 
     @JSONDescriptionProperty.with_metadata_override
     def parameters_descriptions(self) -> List[ParameterDescription]:
-        return list(
-            map(
-                ParameterDescription,
-                self.parameters()
-            )
-        )
+        return list(map(ParameterDescription, self.parameters()))
 
     @JSONDescriptionCachedProperty
     def signature_source_code(self) -> str:
         return signature_source_code(
             obj=self.obj,
+            name=self.name,
+            qualname=self.qualname,
         )
 
     @JSONDescriptionCachedProperty
     def type(self) -> Type:
-        if (isclassmethod(self.obj)):
+        if isclassmethod(self.obj):
             return classmethod
         else:
             return super().type
@@ -312,25 +360,25 @@ class FunctionDescription(ObjectDescription):
         _describers = []
         _kind = "Method"
 
-        if (self.isabstract):
+        if self.isabstract:
             _describers.append("Abstract")
 
-        if (isclassmethod(self.obj)):
+        if isclassmethod(self.obj):
             _describers.append("Class")
-        elif (self.isbound):    # This doesn't really work - this is only `True` if the method passed to `describe` was bound; but if its just a method in a class, Python can't tell if its related to a class on its own.
+        elif (
+            self.isbound
+        ):  # This doesn't really work - this is only `True` if the method passed to `describe` was bound; but if its just a method in a class, Python can't tell if its related to a class on its own.
             _describers.append("Bound")
-        elif (isinstancemethod(self.obj)):
+        elif isinstancemethod(self.obj):
             _describers.append("Bound")
             # _describers.append("Instance")
-        elif (isfunction(self.obj)):
+        elif isfunction(self.obj):
             _kind = "Function"
 
         _describers.append(_kind)
 
         return " ".join(_describers)
 
-        
-    
     @JSONDescriptionCachedProperty
     def return_annotation(self) -> Union[typing._GenericAlias, Type]:
         """
@@ -343,32 +391,46 @@ class FunctionDescription(ObjectDescription):
         """
         Return the `AnnotationDescription` object for the return value's annotation.
         """
-        return AnnotationDescription(
-            self.return_annotation
-        )
+        return AnnotationDescription(self.return_annotation)
 
     @property
     def modules_descriptions(self):
         raise exceptions.AttributeNotApplicable(
-            f"{type(self).__name__} type objects cannot have their attributes described."
+            f"{type(self).__name__} type objects have no modules to describe."
         )
 
     @property
     def functions_descriptions(self):
         raise exceptions.AttributeNotApplicable(
-            f"{type(self).__name__} type objects cannot have their attributes described."
+            f"{type(self).__name__} type objects have no functions to describe."
         )
 
     @property
     def classes_descriptions(self):
         raise exceptions.AttributeNotApplicable(
-            f"{type(self).__name__} type objects cannot have their attributes described."
+            f"{type(self).__name__} type objects have no classes to describe."
         )
 
     # Make sure FunctionDescription does not have attributes_description.
     @property
     def attributes_descriptions(self):
         raise exceptions.AttributeNotApplicable(
-            f"{type(self).__name__} type objects cannot have their attributes described."
+            f"{type(self).__name__} type objects have no attributes to describe."
         )
 
+    @JSONDescriptionProperty
+    def qualname(self):
+        _return = super().qualname
+    
+        if (
+            "<locals>" in _return and \
+            isinstance(self.parent, ObjectDescription)
+        ):
+            _return  = ".".join(
+                [
+                    self.parent.qualname,
+                    self.obj.__name__
+                ]
+            )
+
+        return _return

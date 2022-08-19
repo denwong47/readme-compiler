@@ -2,12 +2,23 @@
     "attributes_descriptions": {
         "my_attribute": {
             "annotation_markdown": "`int`",
-            "return_doc": null,
-            "title": null
+            "return_doc": "Returns an integer... the use of which is yet to be determined.",
+            "title": "My Attribute",
+            "doc": "It's my personal attribute.\n\n* *Very important* to me.\n\n* It's **mine**."
         }
     },
     "comments": null,
-    "doc": "This is a Test Python Module that does nothing.\nIt is simply for:\n    - testing `readme_compiler.describe` module\n    - testing python code formatting\n    - testing markdown formatting",
+    "doc": "This is a Test Python Module that does nothing.\nIt is simply for:\n- testing `readme_compiler.describe` module\n- testing python code formatting\n- testing markdown formatting",
+    "functions_descriptions": {
+        "my_function": {
+            "comments": null,
+            "doc": "This is a description for Demo Function.\n- so function\n- much method\n    - wow",
+            "kind_description": "Function",
+            "name": "my_function",
+            "parameters_descriptions": {},
+            "title": "Demo Function"
+        }
+    },
     "name": "test_repo",
     "title": "Test Repo Name"
 }

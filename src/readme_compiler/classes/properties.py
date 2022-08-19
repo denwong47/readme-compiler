@@ -8,6 +8,7 @@ from .. import bin
 from .. import settings
 from ..settings.enums import RenderPurpose
 from .. import fetchers
+from .. import exceptions
 
 from .cwd import WorkingDirectory
 
@@ -106,6 +107,15 @@ class GitProperties():
                                                         "rev-parse",
                                                         "--abbrev-ref",
                                                         "HEAD"])
+
+            if (isinstance(_branch, exceptions.ShellReturnError)):
+                if (_branch.returncode == 128):
+                    # This means a remote branch had not been setup;
+                    # this repo is probably local at this point.
+                    # This will not happen after the first commit.
+                    # 
+                    # <CalledProcessError> occured during call of ['git', 'rev-parse', '--abbrev-ref', 'HEAD']: Command '['git', 'rev-parse', '--abbrev-ref', 'HEAD']' returned non-zero exit status 128. 
+                    _branch =   "main"
 
             _path           =   fetchers.shell_output([ "git",
                                                         "rev-parse",

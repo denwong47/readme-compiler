@@ -15,7 +15,7 @@ from .django_setup import register  # Required to avoid django.template.library.
 
 import readme_compiler
 
-from . import bin, classes, settings
+from . import bin, classes, settings, stdout
 from .settings.enums import RenderPurpose
 
 @django_setup.register.simple_tag(
@@ -91,16 +91,58 @@ def describe(
     ### `describe` an object using a template.
 
     This template tag can dynamically import modules and their attributes, then describe it.
+
+    Usage:
+    ```
+    {% describe 'module' obj='MyClass' source='test_repo' %}
+    ```
     """
 
-    obj = bin.get_object(
-        obj     = obj,
-        source  = source,
-        globals = globals(),
-        locals  = context,
-    )
+    # print (stdout.blue(
+    #     [template,
+    #     obj,
+    #     source,
+    #     metadata]
+    # ))
 
-    context[template] = readme_compiler.describe(
-        obj,
-        metadata=metadata,
+    if (not isinstance(obj, readme_compiler.describe.object)):
+        obj = bin.get_object(
+            obj     = obj,
+            source  = source,
+            globals = globals(),
+            locals  = context,
+        )
+
+        # `template` here is:
+        # - 'module'
+        # - 'cls'
+        # - 'method'
+        # etc.
+        # 
+        # This HAS to be the same as
+        # - the template file name i.e. template.*.md, AND
+        # - the object name being used INSIDE the template.
+        # 
+        # i.e. do not reinvent them.
+        context[template] = readme_compiler.describe(
+            obj,
+            metadata=metadata,
+        )   # Add the Description object to the context.
+    else:
+        # We already have a description object - save some trouble
+        context[template] = obj
+
+    if (isinstance(_repository := context.get("repository_object", None), classes.RepositoryDirectory)):
+        _template = _repository.template(
+            template    = template,
+        )
+        _return = _template.render(
+            context,
+            purpose = RenderPurpose.EMBED,
+        )
+    else:
+        _return = f"# * readme-compiler error: cannot render template `{template}` without `RepositoryDirectory` instance * #"
+
+    return django_setup.mark_safe(
+        _return
     )
